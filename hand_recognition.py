@@ -58,7 +58,7 @@ while cap.isOpened():
                 connection_drawing_spec=connection_spec,
             )
     # Mostrar el frame en una ventana
-    cv2.imshow("hand_rocogizer", frame)
+    cv2.imshow("hand_recognizer", frame)
     if cv2.waitKey(1) & 0xFF == ord("q"):
         break
 
