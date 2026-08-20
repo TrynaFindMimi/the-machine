@@ -1,6 +1,6 @@
 # Hand Recognition
 
-Sistema de reconocimiento de manos en tiempo real utilizando MediaPipe y OpenCV.
+Reconocimiento de manos en tiempo real construido desde cero con OpenCV.
 
 ## Requisitos
 
@@ -17,13 +17,15 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## Uso
+## Ejecución
 
 ```bash
 python main.py
 ```
 
+Para salir presiona `q`.
+
 ## Dependencias
 
-- [MediaPipe](https://google.github.io/mediapipe/) - Framework de ML para visión por computadora
 - [OpenCV](https://opencv.org/) - Librería de procesamiento de imágenes
+- [NumPy](https://numpy.org/) - Operaciones matemáticas
