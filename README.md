@@ -31,13 +31,20 @@ venv\Scripts\Activate.ps1
 ### 2. Instalar dependencias
 
 ```bash
-pip install opencv-python mediapipe
+pip install opencv-python mediapipe numpy
 ```
 
-| Libreria | Que hace |
-|----------|----------|
-| **opencv-python** | Captura video de la webcam, dibuja en frames, muestra la ventana |
-| **mediapipe** | Framework de ML de Google para deteccion de manos (y otros landmark) |
+| Libreria | Versión probada | Que hace | Documentación |
+|----------|-----------------|----------|---------------|
+| **opencv-python** | 4.8+ | Captura video de la webcam, dibuja en frames, muestra la ventana (`cv2.VideoCapture`, `cv2.line`, `cv2.circle`, `cv2.putText`) | https://docs.opencv.org/4.x/ |
+| **mediapipe** | 0.10+ | Framework de ML de Google para deteccion de manos (21 landmarks por mano) | https://ai.google.dev/edge/mediapipe/solutions/vision/hand_landmarker |
+| **numpy** | 1.24+ | Algebra lineal para el perceptrón y manejo de coordenadas normalizadas | https://numpy.org/doc/ |
+
+Compilación verificada:
+```bash
+venv/bin/python -m py_compile main.py utils/*.py tests/*.py && echo "PY_COMPILES OK"
+venv/bin/python -c "import main; main.make_landmarker().close()"
+```
 
 ### 3. Descargar el modelo (.task)
 
@@ -64,17 +71,46 @@ Invoke-WebRequest -Uri "https://storage.googleapis.com/mediapipe-models/hand_lan
 ### 4. Ejecutar
 
 ```bash
-python finalcount.py
+python main.py
 ```
 
-Presiona `q` para salir.
+Tambien se puede arrancar directo en un modo:
+
+```bash
+python main.py grid   # o line, o hand
+```
+
+Controles:
+
+| Tecla | Accion |
+|-------|--------|
+| `n` | Cambia al siguiente modo (hand -> grid -> line -> ...) |
+| `q` | Salir |
+
+## Modos
+
+**grid** — Rejilla de coordenadas sobre el video con los ejes etiquetados.
+Cada uno de los 21 landmarks de cada mano se dibuja con su coordenada
+pixel `(x, y)` al costado. Un HUD muestra la cantidad de manos detectadas
+y la posicion de la muneca.
+
+**line** — Un perceptron (neurona con pesos `a, b, c`) se entrena en vivo
+cada frame para separar puntos sobre el tramo P5->P9 (nudillo indice ->
+nudillo medio) de puntos desplazados perpendicularmente. La frontera de
+decision aprendida se dibuja como una linea azul que une P5 y P9. El HUD
+muestra epocas de entrenamiento y pesos.
+
+**hand** — Visual estilo Persona: fondo oscurecido, esqueleto blanco con
+glow rojo, nudillos blancos, yemas de dedos en rojo con anillo blanco,
+barra de titulo y acento diagonal. Pensado para verse bien antes de ser
+util.
 
 ## Como funciona el codigo
 
 ### Pipeline general
 
 ```
-Webcam -> OpenCV captura frame -> MediaPipe detecta manos -> Se dibujan los landmarks -> Se muestra el frame
+Webcam -> OpenCV captura frame -> MediaPipe detecta manos -> El modo activo dibuja -> Se muestra el frame
 ```
 
 ### Explicacion por partes
@@ -104,19 +140,27 @@ OpenCV abre la webcam (`VideoCapture(0)`) y entra en un loop leyendo frames.
 `detect_for_video(mp_img, timestamp)` corre el modelo de IA sobre la imagen.
 Retorna una lista de manos detectadas, cada una con 21 landmarks (x, y, z normalizados de 0 a 1).
 
-**5. Dibujado**
+**5. Modo activo**
 
-Para cada mano detectada se dibujan:
-- Puntos blancos en cada landmark (nudillos, yemas, muñeca)
-- Lineas blancas conectando los landmarks segun la anatomia de la mano
-- Texto con el numero de manos detectadas
+`main.py` despacha el frame y los resultados al `draw()` del modo activo
+(`tests/grid_test.py`, `tests/line_test.py` o `tests/hand_test.py`). Cada
+modo es una funcion pura que recibe el frame y los resultados y devuelve
+el frame dibujado. Con la tecla `n` se cicla entre modos sin reiniciar
+la captura ni el modelo.
 
 ## Estructura de archivos
 
 ```
-hand-recognition/
-  hand_landmarker.task   # modelo pre-entrenado (7.5 MB)
-  finalcount.py          # script principal
-  venv/                  # entorno virtual
+the-machine/
+  main.py                # entrada: maneja el VideoCapture, el landmarker y el cambio de modo (tecla n)
+  models/
+    hand_landmarker.task # modelo pre-entrenado (7.5 MB)
+    hand_recognition.py  # script monolitico original (referencia)
+  tests/
+    grid_test.py         # rejilla + coordenadas x,y de las manos
+    line_test.py         # perceptron que une P5 y P9 con linea azul
+    hand_test.py         # render estilo Persona de las manos
+  utils/
+    fps.py               # contador de FPS reutilizable (EMA)
   README.md              # este archivo
 ```
