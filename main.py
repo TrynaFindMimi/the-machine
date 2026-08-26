@@ -41,7 +41,6 @@ def run(mode_idx: int = 0) -> None:
 
     pygame.init()
     pygame.display.set_caption(WINDOW)
-    # tamaño inicial, se ajusta al primer frame
     screen = None
     clock = pygame.time.Clock()
 
@@ -50,7 +49,6 @@ def run(mode_idx: int = 0) -> None:
         if not ret:
             break
 
-        # Espejo horizontal para que se sienta natural (como verse en un espejo)
         frame = cv2.flip(frame, 1)
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         mp_img = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
@@ -59,17 +57,14 @@ def run(mode_idx: int = 0) -> None:
         name = TEST_NAMES[mode_idx]
         out = TESTS[name](frame, results)
 
-        # out es BGR (dibujado con cv2), convertir a RGB para pygame
         h, w = out.shape[:2]
         if screen is None:
             screen = pygame.display.set_mode((w, h))
         rgb_out = cv2.cvtColor(out, cv2.COLOR_BGR2RGB)
-        # pygame espera (w, h, 3) con eje x horizontal, usamos surfarray
         surface = pygame.surfarray.make_surface(np.transpose(rgb_out, (1, 0, 2)))
         screen.blit(surface, (0, 0))
         pygame.display.flip()
 
-        # eventos pygame: q para salir, n para siguiente modo
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 vc.release()

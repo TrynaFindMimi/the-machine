@@ -1,17 +1,9 @@
-"""Capa de presentación - utilidades de dibujo de manos.
-
-Arquitectura en capas:
-- utils/hand.py pertenece a la capa de presentación (render)
-- Centraliza todo el dibujo de manos para que tests/hand_test.py,
-  tests/grid_test.py y tests/line_test.py no dupliquen lógica.
-"""
-
 import cv2
 
-from utils.line import boundary_points, draw_line  # re-export para compatibilidad
+from utils.line import boundary_points, draw_line
 
 WHITE = (245, 245, 245)
-FONT = cv2.FONT_HERSHEY_SIMPLEX  # tech monoespaciado
+FONT = cv2.FONT_HERSHEY_SIMPLEX
 
 HAND_CONNECTIONS = [
     (0, 1), (1, 2), (2, 3), (3, 4),
@@ -41,13 +33,11 @@ def draw_landmarks(frame, pts) -> None:
 
 
 def draw_label(frame, text: str, pt, scale: float = 0.4, color=WHITE, thickness: int = 1) -> None:
-    """Dibuja una etiqueta de texto al lado de un punto."""
     x, y = int(pt[0]), int(pt[1])
     cv2.putText(frame, text, (x + 7, y - 7), FONT, scale, color, thickness, cv2.LINE_AA)
 
 
 def draw_hands(frame, results) -> None:
-    """Dibuja todas las manos (hasta 2) con esqueleto y landmarks. Centralizado en utils."""
     h, w = frame.shape[:2]
     for hand_landmarks in results.hand_landmarks[:2]:
         pts = [(int(lm.x * w), int(lm.y * h)) for lm in hand_landmarks]
