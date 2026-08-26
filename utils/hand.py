@@ -27,7 +27,7 @@ def draw_skeleton(frame, pts) -> None:
 def draw_landmarks(frame, pts) -> None:
     for i, pt in enumerate(pts):
         cv2.circle(frame, pt, 4, WHITE, -1, cv2.LINE_AA)
-        label = str(i + 1)
+        label = str(i)
         x, y = pt[0] + 7, pt[1] - 7
         cv2.putText(frame, label, (x, y), FONT, 0.4, WHITE, 1, cv2.LINE_AA)
 

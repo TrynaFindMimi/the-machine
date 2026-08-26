@@ -1,6 +1,5 @@
 import sys
 import time
-
 import cv2
 import mediapipe as mp
 import numpy as np
@@ -12,6 +11,7 @@ from mediapipe.tasks.python.vision.core.vision_task_running_mode import VisionTa
 from tests.grid_test import draw as grid_test
 from tests.line_test import draw as line_test
 from tests.hand_test import draw as hand_test
+from tests.position_test import draw as position_test
 from utils.text import USAGE, WINDOW
 
 MODEL_PATH = "models/hand_landmarker.task"
@@ -20,6 +20,7 @@ TESTS = {
     "hand": hand_test,
     "grid": grid_test,
     "line": line_test,
+    "position": position_test,
 }
 TEST_NAMES = list(TESTS)
 
@@ -28,7 +29,7 @@ def make_landmarker() -> HandLandmarker:
     options = HandLandmarkerOptions(
         base_options=BaseOptions(model_asset_path=MODEL_PATH),
         running_mode=VisionTaskRunningMode.VIDEO,
-        num_hands=2,
+        num_hands=20,
         min_hand_detection_confidence=0.5,
         min_tracking_confidence=0.5,
     )
