@@ -25,6 +25,6 @@ jobs:
       - name: Format (black --check)
         run: black --check .
       - name: Type check (mypy)
-        run: mypy utils tests main.py --ignore-missing-imports
+        run: mypy app core config common presentation infrastructure main.py --ignore-missing-imports
       - name: Compile
-        run: python -m py_compile main.py utils/*.py tests/*.py
+        run: python -m py_compile main.py app/*.py core/*.py common/*.py config/*.py presentation/modes/*.py presentation/ui/*.py infrastructure/*.py

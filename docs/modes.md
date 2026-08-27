@@ -1,61 +1,19 @@
-# Modos de presentacion (tests/)
+# Modos de presentacion (presentation/modes/)
 
-Cada archivo en `tests/` es un "modo" de visualizacion. No son tests unitarios.
+Cada modo expone `draw(frame, results) -> (frame, hand_count)`.
 
-## Estructura comun
+## hand (`presentation/modes/hand.py`)
 
-Cada modo expone una funcion `draw(frame, results)` que:
-1. Recibe el frame BGR de OpenCV y los resultados de MediaPipe
-2. Dibuja sobre el frame (in-place)
-3. Retorna el frame anotado
+Skeleton fino `1px` + landmarks `2px` numerados `0.3` + bounding box viewfinder blanco + label handedness corregido por flip. Crosshair si `hand_count==0`.
 
-```python
-def draw(frame, results) -> np.ndarray:
-    ...
-    return frame
-```
+## line (`presentation/modes/line.py`)
 
-## Modos disponibles
+Perceptron en vivo por mano (P_A=4 thumb tip, P_B=8 index tip). `build_dataset` + `Perceptron.train_budget(budget=200)` cada frame. Linea `BLUE` `1px` entre P5→P9. `FINGERS_TOGETHER_THRESH=0.04` resetea perceptrón. Soporta 2 manos, `_perc[0]/[1]` persistentes.
 
-### hand (tests/hand_test.py)
+## position (`presentation/modes/position.py`)
 
-Modo basico. Dibuja esqueleto + landmarks numerados de todas las manos detectadas.
+`GestureRecognizer` con `num_hands=2` (ambas manos). Paleta predominante `BLACK`/`WHITE` (sin `GESTURE_COLORS`): `draw_bbox`/`draw_skeleton`/`draw_landmarks` todo en `WHITE 2px` sin borde negro. Tipografía grande y legible con caja negra: título `0.70/2`, gesto `0.65/2` + `Left/Right` `0.60/2` + HUD `0.60/2` vía `_put_text_box()` (rect `BLACK` + texto `WHITE`). Muestra `gesture + confianza %` por mano (máx 2) y usa `core/handedness.get_handedness` (flip corregido) + `core/results.get_gesture`.
 
-```
-Webcam → MediaPipe → draw_skeleton + draw_landmarks → Pygame
-```
+## Ciclo
 
-### grid (tests/grid_test.py)
-
-Muestra esqueleto + landmarks con etiqueta de coordenadas (x,y) por cada punto. Sin ejes ni lineas de referencia.
-
-```
-Webcam → MediaPipe → draw_skeleton + draw_grid_landmarks → Pygame
-```
-
-### line (tests/line_test.py)
-
-Entrena un perceptron por mano en tiempo real y dibuja la frontera de decision como linea azul fina entre el pulgar (P5) y el indice (P9). Soporta 2 manos simultaneamente, cada una con su propio perceptron persistente.
-
-```
-Webcam → MediaPipe → por cada mano (hasta 2):
-    → draw_skeleton + draw_landmarks
-    → build_dataset(p5, p9)
-    → Perceptron.train_budget()
-    → draw_line(azul, thickness=1)
-    → Pygame
-```
-
-## Cambio de modo
-
-Se cambia con la tecla `n` durante la ejecucion. El ciclo es: hand → grid → line → hand...
-
-## Modo inicial
-
-Se puede especificar por linea de comandos:
-
-```bash
-python main.py hand    # inicia en modo hand
-python main.py grid    # inicia en modo grid
-python main.py line    # inicia en modo line
-```
+`hand → line → position → hand` con `n`. Inicio: `python main.py [hand|line|position]`. Registry en `app/registry.py`.

@@ -1,9 +1,4 @@
-import math
-
-import cv2
 import numpy as np
-
-BLUE = (255, 60, 20)
 
 N_SAMPLES = 24
 MARGIN = 0.03
@@ -60,28 +55,3 @@ def build_dataset(p5, p9):
     X = np.hstack([np.vstack([pos, neg]), np.ones((len(pos) + len(neg), 1))])
     y = np.array([1] * len(pos) + [-1] * len(neg))
     return X, y
-
-
-def boundary_points(w_vec, w_px: int, h_px: int):
-    a, b, c = w_vec
-    if abs(a) < 1e-9 and abs(b) < 1e-9:
-        return None
-    pts = []
-    try:
-        if abs(b) >= abs(a):
-            for x in (0.0, 1.0):
-                pts.append((x * w_px, (-c - a * x) / b * h_px))
-        else:
-            for y in (0.0, 1.0):
-                pts.append(((-c - b * y) / a * w_px, y * h_px))
-    except ZeroDivisionError:
-        return None
-    (x1, y1), (x2, y2) = pts
-    if math.hypot(x2 - x1, y2 - y1) < 1e-6:
-        return None
-    return (int(x1), int(y1)), (int(x2), int(y2))
-
-
-def draw_line(frame, p1, p2, color=BLUE, thickness: int = 2):
-    cv2.line(frame, tuple(map(int, p1)), tuple(map(int, p2)), color, thickness, cv2.LINE_AA)
-    return (tuple(map(int, p1)), tuple(map(int, p2)))

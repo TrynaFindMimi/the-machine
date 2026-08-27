@@ -1,0 +1,4 @@
+import cv2
+
+FONT = cv2.FONT_HERSHEY_SIMPLEX
+SIDEBAR_W = 220
