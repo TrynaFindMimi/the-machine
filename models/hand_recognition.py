@@ -1,10 +1,27 @@
+"""
+models/hand_recognition.py — LEGACY / ejemplo mínimo MediaPipe (fuera de capas).
+
+No forma parte de la arquitectura en capas (main→app→presentation→core).
+Se mantiene como referencia histórica; el flujo oficial usa app/runner.py +
+infrastructure/capture.py. No importar desde código productivo.
+"""
+
+from __future__ import annotations
+
 import cv2
 import mediapipe as mp
 from mediapipe.tasks.python import BaseOptions
 from mediapipe.tasks.python.vision import HandLandmarker, HandLandmarkerOptions
 from mediapipe.tasks.python.vision.core.vision_task_running_mode import VisionTaskRunningMode
-from mediapipe.tasks.python.vision.drawing_utils import draw_landmarks, DrawingSpec, _CONNECTION
 from mediapipe.tasks.python.vision.drawing_styles import get_default_hand_connections_style
+from mediapipe.tasks.python.vision.drawing_utils import DrawingSpec, _CONNECTION, draw_landmarks
+
+try:
+    from config.settings import VISION
+
+    _MODEL_PATH = VISION.landmarker_path
+except Exception:
+    _MODEL_PATH = "hand_landmarker.task"
 
 conn_style = get_default_hand_connections_style()
 HAND_CONNECTIONS = [_CONNECTION(a, b) for a, b in conn_style.keys()]
@@ -14,7 +31,7 @@ landmark_spec = DrawingSpec(color=white, thickness=1, circle_radius=2)
 connection_spec = DrawingSpec(color=white, thickness=1, circle_radius=1)
 
 options = HandLandmarkerOptions(
-    base_options=BaseOptions(model_asset_path="hand_landmarker.task"),
+    base_options=BaseOptions(model_asset_path=_MODEL_PATH),
     running_mode=VisionTaskRunningMode.VIDEO,
     num_hands=6,
     min_hand_detection_confidence=0.5,

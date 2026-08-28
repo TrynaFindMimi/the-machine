@@ -1,13 +1,36 @@
+"""presentation/ui/drawing.py — primitivas de dibujo CCTV."""
+
+from __future__ import annotations
+
+from typing import Sequence
+
 import cv2
+import numpy as np
+from numpy.typing import NDArray
 
 from config.palette import WHITE
 
-HAND_CONNECTIONS = [
-    (0, 1), (1, 2), (2, 3), (3, 4),
-    (1, 5), (5, 6), (6, 7), (7, 8),
-    (5, 9), (9, 10), (10, 11), (11, 12),
-    (9, 13), (13, 14), (14, 15), (15, 16),
-    (13, 17), (17, 18), (18, 19), (19, 20),
+HAND_CONNECTIONS: list[tuple[int, int]] = [
+    (0, 1),
+    (1, 2),
+    (2, 3),
+    (3, 4),
+    (1, 5),
+    (5, 6),
+    (6, 7),
+    (7, 8),
+    (5, 9),
+    (9, 10),
+    (10, 11),
+    (11, 12),
+    (9, 13),
+    (13, 14),
+    (14, 15),
+    (15, 16),
+    (13, 17),
+    (17, 18),
+    (18, 19),
+    (19, 20),
     (0, 17),
 ]
 
@@ -16,12 +39,12 @@ def spaced(text: str) -> str:
     return " ".join(text.upper())
 
 
-def draw_skeleton(frame, pts) -> None:
+def draw_skeleton(frame: NDArray[np.uint8], pts: Sequence[tuple[int, int]]) -> None:
     for a, b in HAND_CONNECTIONS:
         cv2.line(frame, pts[a], pts[b], WHITE, 2, cv2.LINE_AA)
 
 
-def draw_landmarks(frame, pts) -> None:
+def draw_landmarks(frame: NDArray[np.uint8], pts: Sequence[tuple[int, int]]) -> None:
     for i, pt in enumerate(pts):
         cv2.circle(frame, pt, 4, WHITE, -1, cv2.LINE_AA)
         label = str(i)
@@ -31,7 +54,13 @@ def draw_landmarks(frame, pts) -> None:
         cv2.putText(frame, label, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.45, WHITE, 1, cv2.LINE_AA)
 
 
-def draw_bbox(frame, pts, color, thickness: int = 1, corner_len: int = 12) -> tuple[int, int, int, int]:
+def draw_bbox(
+    frame: NDArray[np.uint8],
+    pts: Sequence[tuple[int, int]],
+    color: tuple[int, int, int],
+    thickness: int = 1,
+    corner_len: int = 12,
+) -> tuple[int, int, int, int]:
     xs = [p[0] for p in pts]
     ys = [p[1] for p in pts]
     pad = 10
@@ -43,13 +72,24 @@ def draw_bbox(frame, pts, color, thickness: int = 1, corner_len: int = 12) -> tu
     cl = corner_len
     t = thickness + 1
     for cx, cy, dx, dy in [
-        (x1, y1, 1, 1), (x2, y1, -1, 1), (x1, y2, 1, -1), (x2, y2, -1, -1),
+        (x1, y1, 1, 1),
+        (x2, y1, -1, 1),
+        (x1, y2, 1, -1),
+        (x2, y2, -1, -1),
     ]:
         cv2.line(frame, (cx, cy), (cx + dx * cl, cy), color, t, cv2.LINE_AA)
         cv2.line(frame, (cx, cy), (cx, cy + dy * cl), color, t, cv2.LINE_AA)
     return x1, y1, x2, y2
 
 
-def draw_line(frame, p1, p2, color, thickness: int = 1):
-    cv2.line(frame, tuple(map(int, p1)), tuple(map(int, p2)), color, thickness, cv2.LINE_AA)
-    return (tuple(map(int, p1)), tuple(map(int, p2)))
+def draw_line(
+    frame: NDArray[np.uint8],
+    p1: Sequence[int] | NDArray[np.generic],
+    p2: Sequence[int] | NDArray[np.generic],
+    color: tuple[int, int, int],
+    thickness: int = 1,
+) -> tuple[tuple[int, int], tuple[int, int]]:
+    pt1 = tuple(map(int, p1))
+    pt2 = tuple(map(int, p2))
+    cv2.line(frame, pt1, pt2, color, thickness, cv2.LINE_AA)
+    return pt1, pt2

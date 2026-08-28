@@ -1,11 +1,19 @@
-import cv2
+"""presentation/ui/layout.py — sidebar B/W."""
 
-from config.palette import BLACK, GRAY, SIDEBAR_BG, SIDEBAR_BORDER, WHITE
+from __future__ import annotations
+
+import cv2
+import numpy as np
+from numpy.typing import NDArray
+
+from config.palette import GRAY, SIDEBAR_BG, SIDEBAR_BORDER, WHITE
 from config.strings import MODES_ORDER
 from presentation.ui.theme import FONT, SIDEBAR_W
 
 
-def draw_sidebar(frame, current_mode: str, hand_count: int, fps: float) -> None:
+def draw_sidebar(
+    frame: NDArray[np.uint8], current_mode: str, hand_count: int, fps: float
+) -> None:
     h, w = frame.shape[:2]
     sx = w - SIDEBAR_W
     overlay = frame.copy()

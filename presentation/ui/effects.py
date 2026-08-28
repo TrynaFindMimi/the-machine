@@ -1,11 +1,21 @@
+"""presentation/ui/effects.py — efectos visuales CCTV."""
+
+from __future__ import annotations
+
 import cv2
+import numpy as np
+from numpy.typing import NDArray
 
 
-def apply_cctv_effect(frame, alpha: float = 0.0) -> None:
+def apply_cctv_effect(frame: NDArray[np.uint8], alpha: float = 0.0) -> None:
+    """Hook para efectos CCTV (scanlines/viñeta). Actualmente no-op para mantener monocromo limpio."""
+    _ = (frame, alpha)
     return
 
 
-def draw_viewfinder_crosshair(frame, color, thickness: int = 1) -> None:
+def draw_viewfinder_crosshair(
+    frame: NDArray[np.uint8], color: tuple[int, int, int], thickness: int = 1
+) -> None:
     h, w = frame.shape[:2]
     cx, cy = w // 2, h // 2
     size, gap = 18, 6
