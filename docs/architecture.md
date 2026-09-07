@@ -5,12 +5,14 @@
 ```
 main.py              → fachada mínima (args → app.runner.run)
 app/                 → orquestación: runner + vision + registry
-presentation/        → UI: modes/ (hand/line/position) + ui/ (theme/layout/drawing/effects)
-core/                → dominio puro: perceptron, results, gestures, handedness (sin cv2/pygame)
-config/              → configuración: palette, strings (hojas)
+presentation/        → UI: modes/ (hand/line/position/music) + ui/ (theme/layout/drawing/effects)
+controllers/         → gesto→accion: hand.py (FingerLSTM x5, HandController), gestures.py (MusicGestureController)
+core/                → dominio puro: fingers, perceptron, results, gestures, handedness, playlist (sin cv2/pygame)
+config/              → configuración: palette, strings, settings (hojas)
 common/              → transversal: fps
-infrastructure/      → adapters: capture (cv2.VideoCapture), display (pygame)
-models/              → modelos .task + legacy
+infrastructure/      → adapters: capture (cv2.VideoCapture), display (pygame), player (pygame.mixer)
+models/              → modelos .task + finger_*.npz (LSTM por dedo)
+music/               → sagas mp3 (EPIC: The Musical)
 ```
 
 ### Flujo de datos
@@ -18,7 +20,7 @@ models/              → modelos .task + legacy
 ```
 Webcam → infrastructure/capture.Camera.read() [flip+resize 1060x720]
     ↓
-app/vision.py → HandLandmarker (hand/line) | GestureRecognizer (position, 2 manos)
+app/vision.py → HandLandmarker (hand/line/music) | GestureRecognizer (position, 2 manos)
     ↓
 presentation/modes/*.draw(frame, results) → (frame, hand_count)  [bbox viewfinder + landmarks 2px + crosshair, paleta B/W]
     ↓
@@ -29,21 +31,34 @@ presentation/ui/layout → draw_sidebar (MODE/HANDS/FPS)  [B/W: WHITE/GRAY sobre
 infrastructure/display.Window.show(canvas 1280x720) [BGR→RGB→pygame]
 ```
 
+Flujo del modo music (por frame, bifurcacion sobre el anterior):
+
+```
+presentation/modes/music.draw(right hand landmarks)
+    ↓ core/fingers.features_from_landmarks → 5 binarias (±1) + hand-sign
+    ↓ controllers/gestures.MusicGestureController.feed → window(8), agreement(4), cooldown(12)
+    ↓ controllers/hand.HandController.count → 5x FingerLSTM → count → action(0=PAUSE, >=4=PLAY)
+    ↓ .pending queda como accion
+app/runner.consume_pending_action() → infrastructure/player.MusicPlayer.play()/pause()
+    ↓ pygame.mixer.music (devicename desde config/settings.AUDIO) → sink PulseAudio/bluetooth
+```
+
 ### Dependencias entre capas
 
 ```
-config/palette.py, config/strings.py, common/fps.py          ← hojas
-core/perceptron.py → common (nada) | core/results.py → (nada) | core/handedness.py → (nada) | core/gestures.py → config/palette
+config/palette.py, config/strings.py, config/settings.py, common/fps.py     ← hojas
+core/fingers.py → config (nada) | core/perceptron.py → (nada) | core/results.py → (nada) | core/handedness.py → (nada) | core/gestures.py → config/palette | core/playlist.py → (nada)
+controllers/hand.py → config/strings + numpy | controllers/gestures.py → controllers/hand
 presentation/ui/theme.py → (nada) | presentation/ui/drawing.py → config/palette | presentation/ui/effects.py → config/palette
 presentation/ui/layout.py → config/palette + config/strings + presentation/ui/theme  # solo draw_sidebar (B/W)
-presentation/modes/*.py → core/* + config/* + common/fps + presentation/ui/*   # hand/position → core/handedness + core/results
-app/registry.py → presentation/modes/* | app/vision.py → mediapipe | app/runner.py → app/* + infrastructure + presentation/ui/*
-infrastructure/capture.py → cv2 | infrastructure/display.py → pygame+cv2
+presentation/modes/*.py → controllers/* + core/* + config/* + common/fps + presentation/ui/*   # music → controllers/gestures + core/fingers
+app/registry.py → presentation/modes/* | app/vision.py → mediapipe | app/runner.py → app/* + infrastructure + presentation/ui/* + config/strings
+infrastructure/capture.py → cv2 | infrastructure/display.py → pygame+cv2 | infrastructure/player.py → pygame + config/settings + core/playlist
 main.py → app/registry + app/runner + config/strings
 ```
 
-Reglas: `core` nunca importa `presentation`; `config/common` nunca importan capas superiores; `presentation` no importa `app/infrastructure`. `core/handedness.py` aísla la corrección de flip (Left↔Right) para que `core/results.py` solo haga conversión geométrica/gestos. UI minimalista B/W sin header/footer (solo sidebar).
+Reglas: `core` nunca importa `presentation`; `config/common` nunca importan capas superiores; `presentation` no importa `app/infrastructure`. El modo music comunica la accion con el runner a traves de `MusicGestureController.pending` (`consume_pending_action()`), sin que `presentation` toque pygame. `core/handedness.py` aísla la corrección de flip (Left↔Right) para que `core/results.py` solo haga conversión geométrica/gestos. UI minimalista B/W sin header/footer (solo sidebar).
 
 ### Estilo visual
 
-CCTV minimalista monocromo: scanlines cada 4px (`alpha 0.12`), viñeta gaussiana, tipografía `FONT_HERSHEY_SIMPLEX` `0.3-0.5` scale (position `0.60-0.70` bold con caja `BLACK` para legibilidad), bounding box `1-2px` + esquinas `12px`. Paleta predominante `BLACK`/`WHITE`/`GRAY`; `position` sin borde negro en esqueleto/landmarks (solo `WHITE 2px`) y sin color por gesto. Sidebar `SIDEBAR_BG`/`SIDEBAR_BORDER` en grises sin header/footer.
+CCTV minimalista monocromo: scanlines cada 4px (`alpha 0.12`), viñeta gaussiana, tipografía `FONT_HERSHEY_SIMPLEX` `0.3-0.5` scale (position/music `0.60-0.70` bold con caja `BLACK` para legibilidad), bounding box `1-2px` + esquinas `12px`. Paleta predominante `BLACK`/`WHITE`/`GRAY`; `position` sin borde negro en esqueleto/landmarks (solo `WHITE 2px`) y sin color por gesto. Sidebar `SIDEBAR_BG`/`SIDEBAR_BORDER` en grises sin header/footer. `music` reutiliza `_put_text_box` (rect `BLACK` + texto `WHITE`).
