@@ -1,29 +1,3 @@
-"""
-core/handedness.py — dominio puro para distinguir mano izquierda/derecha.
-
-MediaPipe devuelve `handedness` como categoría "Left"/"Right" desde el
-punto de vista del modelo. Como `infrastructure/capture.Camera.read()` hace
-`cv2.flip(frame, 1)` (espejo), la etiqueta está invertida para el usuario.
-Este módulo centraliza esa corrección y evita que `core/results.py` mezcle
-responsabilidades (conversión geométrica vs. semántica de lateralidad).
-
-Capa: core → sin dependencias de cv2/pygame/presentation. Solo stdlib.
-Importado por `presentation/modes/*`.
-"""
-
-"""
-core/handedness.py — dominio puro para distinguir mano izquierda/derecha.
-
-MediaPipe devuelve `handedness` como categoría "Left"/"Right" desde el
-punto de vista del modelo. Como `infrastructure/capture.Camera.read()` hace
-`cv2.flip(frame, 1)` (espejo), la etiqueta está invertida para el usuario.
-Este módulo centraliza esa corrección y evita que `core/results.py` mezcle
-responsabilidades (conversión geométrica vs. semántica de lateralidad).
-
-Capa: core → sin dependencias de cv2/pygame/presentation. Solo stdlib.
-Importado por `presentation/modes/*`.
-"""
-
 from __future__ import annotations
 
 from typing import Final, Protocol, Sequence

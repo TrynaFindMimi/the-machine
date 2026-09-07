@@ -30,7 +30,6 @@ class Window:
     def close(self) -> None:
         pygame.quit()
 
-    # Context manager
     def __enter__(self) -> Window:
         return self
 

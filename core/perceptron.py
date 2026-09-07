@@ -5,7 +5,6 @@ from numpy.typing import NDArray
 
 from config.settings import PERCEPTRON
 
-# Re-export para compatibilidad
 N_SAMPLES: int = PERCEPTRON.n_samples
 MARGIN: float = PERCEPTRON.margin
 LR: float = PERCEPTRON.learning_rate

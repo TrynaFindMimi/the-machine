@@ -33,7 +33,6 @@ class Camera:
     def is_opened(self) -> bool:
         return self._vc.isOpened()
 
-    # Context manager
     def __enter__(self) -> Camera:
         return self
 
