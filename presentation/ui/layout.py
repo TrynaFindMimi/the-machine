@@ -1,5 +1,3 @@
-"""presentation/ui/layout.py — sidebar B/W."""
-
 from __future__ import annotations
 
 import cv2

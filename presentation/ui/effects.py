@@ -1,5 +1,3 @@
-"""presentation/ui/effects.py — efectos visuales CCTV."""
-
 from __future__ import annotations
 
 import cv2
@@ -8,7 +6,6 @@ from numpy.typing import NDArray
 
 
 def apply_cctv_effect(frame: NDArray[np.uint8], alpha: float = 0.0) -> None:
-    """Hook para efectos CCTV (scanlines/viñeta). Actualmente no-op para mantener monocromo limpio."""
     _ = (frame, alpha)
     return
 

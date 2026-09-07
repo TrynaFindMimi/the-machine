@@ -1,10 +1,3 @@
-"""config/settings.py — configuración centralizada inmutable.
-
-Capa config: hoja sin dependencias de otras capas.
-Centraliza valores que antes estaban dispersos (vision, window, perceptron)
-para evitar magic numbers y facilitar DI en app/.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass

@@ -1,15 +1,8 @@
-"""core/gestures.py — dominio puro: re-exporta vocabulario canónico de config/strings.
-
-Mantiene compatibilidad con `from core.gestures import GESTURES/GESTURE_COLORS`.
-La fuente canónica es `config/strings.GESTURES` (hoja config).
-Capa core → config permitida.
-"""
-
 from __future__ import annotations
 
 from typing import Final
 
-from config.palette import GESTURE_COLORS  # noqa: F401  — re-export para compat
+from config.palette import GESTURE_COLORS
 from config.strings import (
     GESTURE_CLOSED_FIST,
     GESTURE_I_LOVE_YOU,

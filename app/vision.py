@@ -1,5 +1,3 @@
-"""app/vision.py — factories de modelos MediaPipe con DI de configuración."""
-
 from __future__ import annotations
 
 import pathlib
@@ -21,9 +19,7 @@ GESTURE_PATH: str = VISION.gesture_path
 
 def _ensure_model(path: str) -> str:
     if not pathlib.Path(path).exists():
-        raise FileNotFoundError(
-            f"modelo no encontrado: {path}. Ejecuta: wget desde models/ (ver README)"
-        )
+        raise FileNotFoundError(f"modelo no encontrado: {path}")
     return path
 
 

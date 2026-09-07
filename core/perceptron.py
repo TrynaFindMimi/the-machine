@@ -1,5 +1,3 @@
-"""core/perceptron.py — dominio puro: perceptrón lineal 2D + construcción de dataset."""
-
 from __future__ import annotations
 
 import numpy as np
@@ -7,7 +5,7 @@ from numpy.typing import NDArray
 
 from config.settings import PERCEPTRON
 
-# Re-export para compatibilidad (evitar romper imports existentes)
+# Re-export para compatibilidad
 N_SAMPLES: int = PERCEPTRON.n_samples
 MARGIN: float = PERCEPTRON.margin
 LR: float = PERCEPTRON.learning_rate
@@ -16,8 +14,6 @@ FINGERS_TOGETHER_THRESH: float = PERCEPTRON.fingers_together_thresh
 
 
 class Perceptron:
-    """Perceptrón binario 2D con bias. Puro numpy, sin cv2/pygame."""
-
     def __init__(self, lr: float = LR, max_epochs: int = MAX_EPOCHS) -> None:
         if lr <= 0:
             raise ValueError("lr debe ser > 0")
@@ -65,12 +61,6 @@ def build_dataset(
     p5: NDArray[np.float64],
     p9: NDArray[np.float64],
 ) -> tuple[NDArray[np.float64], NDArray[np.int64]] | tuple[None, None]:
-    """Construye dataset linealmente separable a lo largo del segmento p5→p9.
-
-    Returns:
-        (X, y) con X shape (2*N_SAMPLES, 3) e y en {1,-1}, o (None,None) si
-        el segmento es degenerado.
-    """
     p5_arr = np.asarray(p5, dtype=float).reshape(2)
     p9_arr = np.asarray(p9, dtype=float).reshape(2)
     seg = p9_arr - p5_arr

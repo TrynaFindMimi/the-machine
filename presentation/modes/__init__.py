@@ -1,8 +1,3 @@
-"""presentation/modes — contrato de modo.
-
-Cada modo expone `draw(frame, results) -> (frame, hand_count)`.
-"""
-
 from __future__ import annotations
 
 from typing import Protocol

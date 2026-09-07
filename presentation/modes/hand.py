@@ -1,5 +1,3 @@
-"""presentation/modes/hand.py — modo esqueleto fino."""
-
 from __future__ import annotations
 
 import cv2
@@ -16,14 +14,12 @@ from presentation.ui.theme import FONT
 
 
 def draw(frame: NDArray[np.uint8], results) -> tuple[NDArray[np.uint8], int]:
-    """Dibuja título, esqueleto y bbox. Puro en frame, sin estado global."""
     cv2.putText(frame, spaced(HAND_TITLE), (10, 18), FONT, 0.5, WHITE, 1, cv2.LINE_AA)
     h, w = frame.shape[:2]
     hand_count = count_hands(results)
     if hand_count == 0:
         draw_viewfinder_crosshair(frame, WHITE)
         return frame, hand_count
-    # defensiva: results.hand_landmarks puede ser None
     landmarks = results.hand_landmarks or []
     for i, hand_landmarks in enumerate(landmarks[:2]):
         pts = to_pixel_points(hand_landmarks, w, h)

@@ -1,5 +1,3 @@
-"""config/strings.py — textos UI inmutables."""
-
 from __future__ import annotations
 
 from typing import Final
@@ -21,9 +19,6 @@ MODE_LABELS: Final[dict[str, str]] = {
     "position": POSITION_TITLE,
 }
 
-# --- Gestos (MediaPipe GestureRecognizer) — fuente canónica ---
-# Nombres exactos que devuelve MediaPipe; centralizados aquí para
-# evitar strings mágicos dispersos en core/palette/presentation.
 GESTURE_NONE: Final = "None"
 GESTURE_CLOSED_FIST: Final = "Closed_Fist"
 GESTURE_OPEN_PALM: Final = "Open_Palm"
@@ -43,5 +38,4 @@ GESTURES: Final[tuple[str, ...]] = (
     GESTURE_VICTORY,
     GESTURE_I_LOVE_YOU,
 )
-# Alias usado por código legacy
 GESTURE_NAMES: Final = GESTURES

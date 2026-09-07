@@ -1,5 +1,3 @@
-"""presentation/modes/position.py — modo gestos (2 manos, paleta B/W)."""
-
 from __future__ import annotations
 
 import cv2
@@ -26,7 +24,6 @@ def _put_text_box(
     pad_x: int = 6,
     pad_y: int = 4,
 ) -> None:
-    """Dibuja texto con caja negra detrás para máxima legibilidad (paleta B/W)."""
     (tw, th), baseline = cv2.getTextSize(text, FONT, font_scale, thickness)
     x, y = org
     x1, y1 = x - pad_x, y - th - pad_y

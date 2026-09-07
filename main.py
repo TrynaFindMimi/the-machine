@@ -1,5 +1,3 @@
-"""main.py — fachada mínima (parsea args → app.runner.run)."""
-
 from __future__ import annotations
 
 import argparse
@@ -28,16 +26,11 @@ def _parse_args(argv: list[str] | None = None) -> int:
 
 
 def main(argv: list[str] | None = None) -> None:
-    # Compatibilidad: si argv contiene valor inválido fuera de choices, argparse ya
-    # hace exit 2. Mantenemos mensaje legacy USAGE para SystemExit 1 si se usa
-    # validación manual (ej. tests).
     if argv is None:
         argv = sys.argv[1:]
-    # argparse maneja --help automáticamente
     try:
         start = _parse_args(argv)
     except SystemExit as exc:
-        # Re-emitir USAGE si fue error por modo inválido (argparse code 2)
         if exc.code == 2 and argv and argv[0] not in TEST_NAMES and not argv[0].startswith("-"):
             names = ", ".join(TEST_NAMES)
             print(USAGE.format(names))

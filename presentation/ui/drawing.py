@@ -1,5 +1,3 @@
-"""presentation/ui/drawing.py — primitivas de dibujo CCTV."""
-
 from __future__ import annotations
 
 from typing import Sequence

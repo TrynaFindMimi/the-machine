@@ -1,5 +1,3 @@
-"""config/palette.py — paleta BGR (OpenCV) inmutable."""
-
 from __future__ import annotations
 
 from typing import Final
@@ -15,7 +13,6 @@ from config.strings import (
     GESTURE_VICTORY,
 )
 
-# Base
 WHITE: Final = (245, 245, 245)
 BLACK: Final = (0, 0, 0)
 GREEN: Final = (0, 255, 0)
@@ -28,7 +25,6 @@ GRAY: Final = (140, 140, 140)
 SIDEBAR_BG: Final = (18, 18, 18)
 SIDEBAR_BORDER: Final = (70, 70, 70)
 
-# Gestos → color (presentación). Claves tomadas de config/strings (fuente canónica).
 GESTURE_COLORS: Final[dict[str, tuple[int, int, int]]] = {
     GESTURE_NONE: RED,
     GESTURE_CLOSED_FIST: (0, 140, 255),

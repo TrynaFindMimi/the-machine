@@ -1,5 +1,3 @@
-"""infrastructure/capture.py — adapter de cámara (cv2)."""
-
 from __future__ import annotations
 
 import cv2
@@ -8,11 +6,6 @@ from numpy.typing import NDArray
 
 
 class Camera:
-    """Encapsula cv2.VideoCapture con flip espejo y resize.
-
-    Soporta uso como context manager.
-    """
-
     def __init__(self, w: int, h: int, device: int = 0) -> None:
         if w <= 0 or h <= 0:
             raise ValueError("dimensiones de cámara deben ser > 0")
@@ -47,7 +40,6 @@ class Camera:
     def __exit__(self, *_args: object) -> None:
         self.release()
 
-    # Alias para compatibilidad con código que espera .vc
     @property
     def vc(self) -> cv2.VideoCapture:
         return self._vc

@@ -26,7 +26,6 @@ CAMERA_H: Final = WINDOW.camera_height
 
 
 def _handle_events(mode_idx: int) -> tuple[bool, int]:
-    """Procesa eventos pygame. Returns (should_quit, new_mode_idx)."""
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             return True, mode_idx
@@ -43,8 +42,6 @@ def run(
     window_cfg: WindowSettings = WINDOW,
     vision_cfg: VisionSettings | None = None,
 ) -> None:
-    """Ejecuta el loop principal. Gestiona ciclo de vida de recursos con contextlib."""
-    # Validación temprana
     if not 0 <= mode_idx < len(TEST_NAMES):
         raise ValueError(f"mode_idx fuera de rango: {mode_idx}")
 
@@ -55,7 +52,6 @@ def run(
     clock = pygame.time.Clock()
 
     with contextlib.ExitStack() as stack:
-        # Garantiza liberación incluso si hay excepción en inicialización
         stack.callback(cam.release)
         stack.callback(landmarker.close)
         stack.callback(recognizer.close)

@@ -1,5 +1,3 @@
-"""presentation/modes/line.py — perceptrón en vivo entre P_A→P_B."""
-
 from __future__ import annotations
 
 import cv2
@@ -15,17 +13,15 @@ from presentation.ui.drawing import draw_bbox, draw_landmarks, draw_line, draw_s
 from presentation.ui.effects import draw_viewfinder_crosshair
 from presentation.ui.theme import FONT
 
-P_A: int = PERCEPTRON.point_a_idx  # 4 = pulgar tip
-P_B: int = PERCEPTRON.point_b_idx  # 8 = índice tip
+P_A: int = PERCEPTRON.point_a_idx
+P_B: int = PERCEPTRON.point_b_idx
 EPOCH_BUDGET: int = PERCEPTRON.epoch_budget
 _FINGERS_THRESH: float = PERCEPTRON.fingers_together_thresh
 
-# Estado por mano (máx 2). Encapsulado para facilitar reset/test.
 _perceptrons: list[Perceptron | None] = [None, None]
 
 
 def reset_perceptrons() -> None:
-    """Resetea estado — útil para tests y cambio de ausencia de manos."""
     _perceptrons[0] = None
     _perceptrons[1] = None
 
