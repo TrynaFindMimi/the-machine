@@ -32,6 +32,18 @@ class VisionSettings:
 
 
 @dataclass(frozen=True, slots=True)
+class AudioSettings:
+    driver: str = "pulseaudio"
+    device: str = "AirPods Max - Find My"
+    frequency: int = 44100
+    size: int = -16
+    channels: int = 2
+    buffer: int = 512
+    volume: float = 1.0
+    auto_find_bluetooth: bool = True
+
+
+@dataclass(frozen=True, slots=True)
 class PerceptronSettings:
     n_samples: int = 24
     margin: float = 0.03
@@ -45,4 +57,5 @@ class PerceptronSettings:
 
 WINDOW: Final = WindowSettings()
 VISION: Final = VisionSettings()
+AUDIO: Final = AudioSettings()
 PERCEPTRON: Final = PerceptronSettings()

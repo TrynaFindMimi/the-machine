@@ -1,5 +1,3 @@
-"""app/runner.py — loop principal orquestando captura → visión → modo → UI."""
-
 from __future__ import annotations
 
 import contextlib
@@ -14,8 +12,17 @@ import pygame
 from app.registry import TEST_NAMES, TESTS
 from app.vision import make_landmarker, make_recognizer
 from config.settings import WINDOW, VisionSettings, WindowSettings
+from config.strings import (
+    MUSIC_ACTION_NEXT_SAGA,
+    MUSIC_ACTION_NEXT_SONG,
+    MUSIC_ACTION_PAUSE,
+    MUSIC_ACTION_PLAY,
+    MUSIC_ACTION_STOP,
+    MUSIC_UNKNOWN,
+)
 from infrastructure.capture import Camera
 from infrastructure.display import Window
+from infrastructure.player import MusicPlayer
 from presentation.ui.effects import apply_cctv_effect
 from presentation.ui.layout import draw_sidebar
 
@@ -50,6 +57,7 @@ def run(
     cam = Camera(window_cfg.camera_width, window_cfg.camera_height)
     window = Window(window_cfg.width, window_cfg.height, window_cfg.title)
     clock = pygame.time.Clock()
+    player = MusicPlayer()
 
     with contextlib.ExitStack() as stack:
         stack.callback(cam.release)
@@ -73,7 +81,39 @@ def run(
             else:
                 results = landmarker.detect_for_video(mp_img, ts)
 
+            if name == "music":
+                from presentation.modes import music as music_mode
+
+                song = player.current_song
+                saga = player.current_saga
+                if saga and song:
+                    track_text = f"{player.song_idx + 1}/{len(saga)}"
+                else:
+                    track_text = MUSIC_UNKNOWN
+                music_mode.set_context(
+                    player.current_saga_name,
+                    song.name if song else MUSIC_UNKNOWN,
+                    track_text,
+                    player.state(),
+                )
+
             out, hand_count = TESTS[name](frame, results)
+
+            if name == "music":
+                from presentation.modes import music as music_mode
+
+                action = music_mode.consume_pending_action()
+                if action == MUSIC_ACTION_PLAY:
+                    player.play()
+                elif action == MUSIC_ACTION_PAUSE:
+                    player.pause()
+                elif action == MUSIC_ACTION_STOP:
+                    player.stop()
+                elif action == MUSIC_ACTION_NEXT_SONG:
+                    player.next_song()
+                elif action == MUSIC_ACTION_NEXT_SAGA:
+                    player.next_saga()
+                player.tick()
             fps = clock.get_fps()
             apply_cctv_effect(out)
             draw_sidebar(out, name, hand_count, fps)

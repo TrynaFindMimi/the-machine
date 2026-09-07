@@ -2,21 +2,38 @@ from __future__ import annotations
 
 from typing import Final
 
-WINDOW: Final = "the-machine"
+WINDOW: Final = "The Machine"
 USAGE: Final = "uso: python main.py [{}]"
 
 HAND_TITLE: Final = "deteccion de manos"
 LINE_TITLE: Final = "deteccion de linea"
 POSITION_TITLE: Final = "deteccion de gestos"
+MUSIC_TITLE: Final = "music player"
+MUSIC_STATE_PLAY: Final = "PLAY"
+MUSIC_STATE_PAUSE: Final = "PAUSE"
+MUSIC_ACTION_PLAY: Final = "PLAY"
+MUSIC_ACTION_PAUSE: Final = "PAUSE"
+MUSIC_ACTION_STOP: Final = "STOP + RESET"
+MUSIC_ACTION_NEXT_SONG: Final = "NEXT SONG"
+MUSIC_ACTION_NEXT_SAGA: Final = "NEXT SAGA"
+MUSIC_SAGA_FMT: Final = "SAGA: {}"
+MUSIC_SONG_FMT: Final = "SONG: {}"
+MUSIC_COUNT_FMT: Final = "TRACK: {}"
+MUSIC_STATE_FMT: Final = "STATE: {}"
+MUSIC_FINGERS_FMT: Final = "FINGERS: {}"
+MUSIC_ACTION_FMT: Final = "ACTION: {}"
+MUSIC_UNKNOWN: Final = "-"
+MUSIC_HAND_R: Final = "Right"
 FPS_FMT: Final = "FPS {:05.1f}"
 
 KEYBIND_HINT: Final = "[n]ext [q]uit"
 
-MODES_ORDER: Final[tuple[str, ...]] = ("hand", "line", "position")
+MODES_ORDER: Final[tuple[str, ...]] = ("hand", "line", "position", "music")
 MODE_LABELS: Final[dict[str, str]] = {
     "hand": HAND_TITLE,
     "line": LINE_TITLE,
     "position": POSITION_TITLE,
+    "music": MUSIC_TITLE,
 }
 
 GESTURE_NONE: Final = "None"
