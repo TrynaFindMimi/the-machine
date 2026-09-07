@@ -17,6 +17,8 @@ from config.strings import (
     MUSIC_ACTION_NEXT_SONG,
     MUSIC_ACTION_PAUSE,
     MUSIC_ACTION_PLAY,
+    MUSIC_ACTION_PREV_SAGA,
+    MUSIC_ACTION_PREV_SONG,
     MUSIC_ACTION_STOP,
     MUSIC_UNKNOWN,
 )
@@ -109,10 +111,17 @@ def run(
                     player.pause()
                 elif action == MUSIC_ACTION_STOP:
                     player.stop()
+                elif action == MUSIC_ACTION_PREV_SONG:
+                    player.prev_song()
                 elif action == MUSIC_ACTION_NEXT_SONG:
                     player.next_song()
+                elif action == MUSIC_ACTION_PREV_SAGA:
+                    player.prev_saga()
                 elif action == MUSIC_ACTION_NEXT_SAGA:
                     player.next_saga()
+                volume = music_mode.consume_pending_volume()
+                if volume is not None:
+                    player.set_volume(volume)
                 player.tick()
             fps = clock.get_fps()
             apply_cctv_effect(out)

@@ -6,7 +6,14 @@ from typing import Final
 import numpy as np
 from numpy.typing import NDArray
 
-from config.strings import MUSIC_ACTION_PAUSE, MUSIC_ACTION_PLAY
+from config.strings import (
+    MUSIC_ACTION_NEXT_SAGA,
+    MUSIC_ACTION_NEXT_SONG,
+    MUSIC_ACTION_PAUSE,
+    MUSIC_ACTION_PLAY,
+    MUSIC_ACTION_PREV_SAGA,
+    MUSIC_ACTION_PREV_SONG,
+)
 
 _MODEL_DIR: Final = pathlib.Path("models")
 _WINDOW: Final = 8
@@ -177,7 +184,15 @@ class HandController:
     def action(self, count: int) -> str:
         if count == 0:
             return MUSIC_ACTION_PAUSE
-        if count >= 4:
+        if count == 1:
+            return MUSIC_ACTION_PREV_SONG
+        if count == 2:
+            return MUSIC_ACTION_NEXT_SONG
+        if count == 3:
+            return MUSIC_ACTION_PREV_SAGA
+        if count == 4:
+            return MUSIC_ACTION_NEXT_SAGA
+        if count == 5:
             return MUSIC_ACTION_PLAY
         return ""
 

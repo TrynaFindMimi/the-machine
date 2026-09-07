@@ -13,12 +13,14 @@ FINGERS_TOGETHER_THRESH: float = PERCEPTRON.fingers_together_thresh
 
 
 class Perceptron:
-    def __init__(self, lr: float = LR, max_epochs: int = MAX_EPOCHS) -> None:
+    def __init__(self, lr: float = LR, max_epochs: int = MAX_EPOCHS, n_features: int = 3) -> None:
         if lr <= 0:
             raise ValueError("lr debe ser > 0")
         if max_epochs <= 0:
             raise ValueError("max_epochs debe ser > 0")
-        self.w: NDArray[np.float64] = np.zeros(3, dtype=np.float64)
+        if n_features <= 0:
+            raise ValueError("n_features debe ser > 0")
+        self.w: NDArray[np.float64] = np.zeros(n_features, dtype=np.float64)
         self.lr: float = float(lr)
         self.max_epochs: int = int(max_epochs)
 
@@ -53,7 +55,7 @@ class Perceptron:
         return trained
 
     def reset(self) -> None:
-        self.w = np.zeros(3, dtype=np.float64)
+        self.w = np.zeros(self.w.shape[0], dtype=np.float64)
 
 
 def build_dataset(

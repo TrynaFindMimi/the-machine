@@ -55,7 +55,17 @@ class PerceptronSettings:
     point_b_idx: int = 8
 
 
+@dataclass(frozen=True, slots=True)
+class VolumeSettings:
+    near: float = 0.10
+    far: float = 0.45
+    pinky_join: float = 0.06
+    smoothing: float = 0.35
+    model_path: str = "models/volume.npz"
+
+
 WINDOW: Final = WindowSettings()
 VISION: Final = VisionSettings()
 AUDIO: Final = AudioSettings()
 PERCEPTRON: Final = PerceptronSettings()
+VOLUME: Final = VolumeSettings()

@@ -4,6 +4,7 @@ import os
 import pathlib
 from typing import Final
 
+import numpy as np
 import pygame
 
 from config.settings import AUDIO
@@ -21,6 +22,7 @@ class MusicPlayer:
         self.song_idx: int = 0
         self.playing: bool = False
         self.paused: bool = False
+        self.volume: float = float(AUDIO.volume)
         self._loaded: pathlib.Path | None = None
 
     @property
@@ -84,7 +86,7 @@ class MusicPlayer:
             return
         try:
             pygame.mixer.music.load(str(song))
-            pygame.mixer.music.set_volume(AUDIO.volume)
+            pygame.mixer.music.set_volume(self.volume)
             pygame.mixer.music.play()
         except Exception as e:
             print(f"[player] error cargando {song}: {e}")
@@ -113,6 +115,11 @@ class MusicPlayer:
         self.saga_idx = 0
         self.song_idx = 0
 
+    def set_volume(self, volume: float) -> None:
+        self.volume = float(np.clip(volume, 0.0, 1.0))
+        if pygame.mixer.get_init():
+            pygame.mixer.music.set_volume(self.volume)
+
     def next_song(self) -> None:
         saga = self.current_saga
         if not saga:
@@ -120,10 +127,24 @@ class MusicPlayer:
         self.song_idx = (self.song_idx + 1) % len(saga)
         self.play()
 
+    def prev_song(self) -> None:
+        saga = self.current_saga
+        if not saga:
+            return
+        self.song_idx = (self.song_idx - 1) % len(saga)
+        self.play()
+
     def next_saga(self) -> None:
         if not self.sagas:
             return
         self.saga_idx = (self.saga_idx + 1) % len(self.sagas)
+        self.song_idx = 0
+        self.play()
+
+    def prev_saga(self) -> None:
+        if not self.sagas:
+            return
+        self.saga_idx = (self.saga_idx - 1) % len(self.sagas)
         self.song_idx = 0
         self.play()
 

@@ -19,7 +19,6 @@ class MusicGestureController:
         self.window: list[NDArray[np.float64]] = []
         self.agreement: int = 0
         self.last_count: int = -1
-        self.last_action: int = -1
         self.cooldown: int = 0
         self.pending: str = ""
 
@@ -31,7 +30,6 @@ class MusicGestureController:
         self.window = []
         self.agreement = 0
         self.last_count = -1
-        self.last_action = -1
         self.cooldown = 0
         self.pending = ""
 
@@ -41,11 +39,10 @@ class MusicGestureController:
         return action
 
     def _apply_action(self, count: int) -> str:
-        if count == self.last_action or self.cooldown > 0:
-            self.cooldown = max(0, self.cooldown - 1)
+        if self.cooldown > 0:
+            self.cooldown -= 1
             return ""
         self.cooldown = COOLDOWN_FRAMES
-        self.last_action = count
         action = self.hand.action(count)
         if action:
             self.pending = action

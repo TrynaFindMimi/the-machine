@@ -16,15 +16,19 @@ Perceptron en vivo por mano (P_A=4 thumb tip, P_B=8 index tip). `build_dataset` 
 
 ## music (`presentation/modes/music.py`)
 
-Reproductor de EPIC: The Musical por sagas. Solo procesa la mano derecha (`core/handedness.get_handedness` + flip corregido). UI de tags negros estilo position vía `_put_text_box`: título `0.70/2`, SAGA `0.55/2`, SONG `0.45/1`, TRACK `0.45/1`, STATE `0.55/1`, FINGERS `0.5/1`, ACTION `0.5/1`, etiqueta `Right` junto al bbox.
+Reproductor de EPIC: The Musical por sagas. Procesa ambas manos: derecha para navegacion/accion, izquierda para volumen (`core/handedness.get_handedness` + flip corregido). UI de tags negros estilo position vía `_put_text_box`: título `0.70/2`, SAGA `0.55/2`, SONG `0.45/1`, TRACK `0.45/1`, STATE `0.55/1`, FINGERS `0.5/1`, ACTION `0.5/1`, etiquetas Right/Left junto a sus bboxes, barra de volumen con label VOLUME/SAVED.
 
-Pipeline por frame:
+Pipeline por frame (mano derecha — acciones):
 - `core/fingers.features_from_landmarks` → 5 features binarias (±1): pulgar por distancia euclideana tip↔pip/scale (umbral `0.25`), resto por delta `y` (`0.15`) + 6ª feature hand-sign (no usada para contar).
 - `controllers/hand.HandController.count(window 8x6)` → 5 `FingerLSTM` (uno por dedo) → suma dedos detectados.
-- `controllers/gestures.MusicGestureController.feed(feat)` → ventana `len=8`, agreement `>=4` frames, cooldown `12`, mapeo `0→PAUSE`, `>=4→PLAY` vía `HandController.action`.
-- `consume_pending_action()` → el runner despacha `player.play()/pause()`.
+- `controllers/gestures.MusicGestureController.feed(feat)` → ventana `len=8`, agreement `>=4` frames, cooldown `12`, mapeo count→accion.
+- `consume_pending_action()` → el runner despacha `player.play()/pause()/prev/next song|saga`.
 
-Gestos: puño (0 dedos) = PAUSE, mano abierta (>=4) = PLAY. `FingerLSTM` (hidden=8, 60 epochs, sin dropout) entrenado con ruido gaussiano en `models/finger_*.npz` (`HandController.train_all`); si no existen, se reentrenan al iniciar.
+Mano izquierda — volumen:
+- `core/fingers.ring_thumb_distance / pinky_ring_distance` → distancias euclideas tip↔tip normalizadas.
+- `controllers/volume.VolumeController.feed(dist, joined)` → `Perceptron` (2 features, entrenado cerca/lejos) mapea distancia a nivel continuo 0..1. El meñique cercano al anular (dist < `pinky_join` thresh) dispara el commit (`consume_pending_volume()` → `player.set_volume()`). Re-arm al separar.
+
+Gestos (mano derecha): 0=PAUSE, 1=PREV SONG, 2=NEXT SONG, 3=PREV SAGA, 4=NEXT SAGA, 5=PLAY. `FingerLSTM` (hidden=8, 60 epochs, sin dropout) entrenado con ruido gaussiano en `models/finger_*.npz` (`HandController.train_all`); `Perceptron` (2 features, 3000 epochs) en `models/volume.npz`; si faltan, se reentrenan al iniciar.
 
 ## Ciclo
 

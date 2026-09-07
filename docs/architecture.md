@@ -6,12 +6,12 @@
 main.py              → fachada mínima (args → app.runner.run)
 app/                 → orquestación: runner + vision + registry
 presentation/        → UI: modes/ (hand/line/position/music) + ui/ (theme/layout/drawing/effects)
-controllers/         → gesto→accion: hand.py (FingerLSTM x5, HandController), gestures.py (MusicGestureController)
+controllers/         → gesto→accion: hand.py (FingerLSTM x5, HandController), gestures.py (MusicGestureController), volume.py (VolumeController, Perceptron)
 core/                → dominio puro: fingers, perceptron, results, gestures, handedness, playlist (sin cv2/pygame)
 config/              → configuración: palette, strings, settings (hojas)
 common/              → transversal: fps
 infrastructure/      → adapters: capture (cv2.VideoCapture), display (pygame), player (pygame.mixer)
-models/              → modelos .task + finger_*.npz (LSTM por dedo)
+models/              → modelos .task + finger_*.npz (LSTM por dedo) + volume.npz (Perceptron)
 music/               → sagas mp3 (EPIC: The Musical)
 ```
 
@@ -34,12 +34,18 @@ infrastructure/display.Window.show(canvas 1280x720) [BGR→RGB→pygame]
 Flujo del modo music (por frame, bifurcacion sobre el anterior):
 
 ```
-presentation/modes/music.draw(right hand landmarks)
+[mano derecha] presentation/modes/music.draw(right hand landmarks)
     ↓ core/fingers.features_from_landmarks → 5 binarias (±1) + hand-sign
     ↓ controllers/gestures.MusicGestureController.feed → window(8), agreement(4), cooldown(12)
-    ↓ controllers/hand.HandController.count → 5x FingerLSTM → count → action(0=PAUSE, >=4=PLAY)
+    ↓ controllers/hand.HandController.count → 5x FingerLSTM → count → action(0=PAUSE,1=PREV SONG,2=NEXT SONG,3=PREV SAGA,4=NEXT SAGA,5=PLAY)
     ↓ .pending queda como accion
-app/runner.consume_pending_action() → infrastructure/player.MusicPlayer.play()/pause()
+app/runner.consume_pending_action() → player.play()/pause()/prev|next song|saga
+
+[mano izquierda] presentation/modes/music.draw(left hand landmarks)
+    ↓ core/fingers.ring_thumb_distance / pinky_ring_distance (normalizadas por hand_scale)
+    ↓ controllers/volume.VolumeController.feed → Perceptron (2 features) → nivel 0..1; commit al unir meñique, re-arm al separar
+    ↓ .pending queda como volumen
+app/runner.consume_pending_volume() → player.set_volume()
     ↓ pygame.mixer.music (devicename desde config/settings.AUDIO) → sink PulseAudio/bluetooth
 ```
 
@@ -48,16 +54,16 @@ app/runner.consume_pending_action() → infrastructure/player.MusicPlayer.play()
 ```
 config/palette.py, config/strings.py, config/settings.py, common/fps.py     ← hojas
 core/fingers.py → config (nada) | core/perceptron.py → (nada) | core/results.py → (nada) | core/handedness.py → (nada) | core/gestures.py → config/palette | core/playlist.py → (nada)
-controllers/hand.py → config/strings + numpy | controllers/gestures.py → controllers/hand
+controllers/hand.py → config/strings + numpy | controllers/gestures.py → controllers/hand | controllers/volume.py → core/perceptron + config/settings
 presentation/ui/theme.py → (nada) | presentation/ui/drawing.py → config/palette | presentation/ui/effects.py → config/palette
 presentation/ui/layout.py → config/palette + config/strings + presentation/ui/theme  # solo draw_sidebar (B/W)
-presentation/modes/*.py → controllers/* + core/* + config/* + common/fps + presentation/ui/*   # music → controllers/gestures + core/fingers
+presentation/modes/*.py → controllers/* + core/* + config/* + common/fps + presentation/ui/*   # music → controllers/gestures + controllers/volume + core/fingers
 app/registry.py → presentation/modes/* | app/vision.py → mediapipe | app/runner.py → app/* + infrastructure + presentation/ui/* + config/strings
 infrastructure/capture.py → cv2 | infrastructure/display.py → pygame+cv2 | infrastructure/player.py → pygame + config/settings + core/playlist
 main.py → app/registry + app/runner + config/strings
 ```
 
-Reglas: `core` nunca importa `presentation`; `config/common` nunca importan capas superiores; `presentation` no importa `app/infrastructure`. El modo music comunica la accion con el runner a traves de `MusicGestureController.pending` (`consume_pending_action()`), sin que `presentation` toque pygame. `core/handedness.py` aísla la corrección de flip (Left↔Right) para que `core/results.py` solo haga conversión geométrica/gestos. UI minimalista B/W sin header/footer (solo sidebar).
+Reglas: `core` nunca importa `presentation`; `config/common` nunca importan capas superiores; `presentation` no importa `app/infrastructure`. El modo music comunica acciones y volumen con el runner a traves de `MusicGestureController.pending` y `VolumeController.pending` (`consume_pending_action`/`consume_pending_volume`), sin que `presentation` toque pygame. `core/handedness.py` aísla la corrección de flip (Left↔Right) para que `core/results.py` solo haga conversión geométrica/gestos. UI minimalista B/W sin header/footer (solo sidebar).
 
 ### Estilo visual
 
