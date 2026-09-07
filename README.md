@@ -69,14 +69,14 @@ python main.py music        # inicia en music player
 
 | Mano izquierda | Accion |
 |-------|--------|
-| Pinza anular↔pulgar (distancia) | Ajustar volumen (perceptron) |
-| Anadir meñique a la pinza | Guardar/aplicar volumen |
+| Pinza indice↔pulgar (distancia) | Ajustar volumen (perceptron) |
+| Anadir meñique a la pinza (junta meñique↔pulgar) | Guardar/aplicar volumen |
 
-El volumen de la mano izquierda usa un `Perceptron` (2 features: distancia anular→pulgar normalizada + bias) entrenado como clasificador cerca/lejos; su salida continua se mapea a 0..1. El nivel se aplica al reproductor solo cuando el meñique se une a la pinza, y se rearma al separarlo.
+El volumen de la mano izquierda usa un `Perceptron` (2 features: distancia indice→pulgar normalizada + bias) entrenado como clasificador cerca/lejos; su salida continua se mapea a 0..1 (dedos juntos = 0, separados = 100). El nivel se aplica al reproductor solo cuando el meñique se une al pulgar (pinza meñique↔pulgar), y se rearma al separarlo. Se aplica un cooldown a los gestos de la mano derecha para que un comando no se repita mientras se mantiene el gesto.
 
 ### Como se elige el dispositivo de audio
 
-El dispositivo de salida se configura en `config/settings.py` (`AudioSettings`): driver `pulseaudio` y devicename con el nombre del sink que expone SDL (por ejemplo `AirPods Max - Find My`). El mixer se re-inicializa con ese dispositivo en cada `play()`.
+El dispositivo de salida se configura en `config/settings.py` (`AudioSettings`): driver `pulseaudio` y devicename preferido (por ejemplo `AirPods Max`). Con `auto_find_bluetooth=True` (por defecto), en cada `play()` se consultan los dispositivos que expone SDL y se reproduce en el primer auricular/cascos bluetooth detectado (match por nombre preferido o por keyword de `bluetooth_keywords`); si no hay ninguno, se usa el dispositivo de sistema por defecto. El mixer se re-inicializa con ese dispositivo en cada `play()`.
 
 ```bash
 # listar los dispositivos de audio que ve SDL
@@ -86,17 +86,17 @@ venv/bin/python -c "import os; os.environ['SDL_AUDIODRIVER']='pulseaudio'; impor
 ### Como se decide el gesto (capas)
 
 ```
-core/fingers.features_from_landmarks → 5 binarias (±1, pulgar euclidea 0.25 / resto 0.15) + hand-sign
+core/fingers.features_from_landmarks → 5 binarias (±1, pulgar: punta vs mcp indice 0.02 / resto y 0.15) + hand-sign
 controllers/hand.HandController → 5x FingerLSTM (secuencia de 8 features por dedo) → count()
-controllers/gestures.MusicGestureController → ventana, agreement (4), cooldown (12), mapeo count→accion
+controllers/gestures.MusicGestureController → ventana, agreement (4), rate limit (3s), mapeo count→accion
 app/runner → consume_pending_action → player.play()/pause()/prev/next song|saga
 ```
 
 Volumen (mano izquierda):
 
 ```
-core/fingers.ring_thumb_distance / pinky_ring_distance → distancias normalizadas
-controllers/volume.VolumeController → Perceptron (2 features) mapea distancia→0..1, commit al cerrar pinza+meñique, re-arm al separar
+core/fingers.index_thumb_distance / pinky_thumb_distance → distancias normalizadas
+controllers/volume.VolumeController → Perceptron (2 features) mapea distancia→0..1, commit al cerrar indice+pulgar con meñique↔pulgar, re-arm al separar
 app/runner → consume_pending_volume → player.set_volume()
 ```
 
@@ -108,7 +108,7 @@ app/runner → consume_pending_volume → player.set_volume()
 
 **position** — GestureRecognizer (2 manos, paleta B/W). Gestos: Closed_Fist, Open_Palm, Pointing_Up, Thumb_Down, Thumb_Up, Victory, ILoveYou. Bounding box/skeleton/landmarks en `WHITE` sin borde negro + fuente grande legible con caja `BLACK` (`_put_text_box`) + `%` confianza por mano.
 
-**music** — Reproductor de EPIC por sagas (folders `NN Title.mp3`). UI con caja negra (`_put_text_box`): SAGA, SONG, TRACK, STATE, FINGERS (LSTM) y ACTION. Tags negros estilo `position`. Mano derecha controla reproduccion/navegacion; mano izquierda controla volumen (distancia anular↔pulgar, commit por meñique).
+**music** — Reproductor de EPIC por sagas (folders `NN Title.mp3`). UI con caja negra (`_put_text_box`): SAGA, SONG, TRACK, STATE, FINGERS (LSTM) y ACTION. Tags negros estilo `position`. Mano derecha controla reproduccion/navegacion (con cooldown anti-repeticion); mano izquierda controla volumen (distancia indice↔pulgar, commit cuando meñique se junta con pulgar).
 
 Estilo global: overlay CCTV monocromo (scanlines, viñeta), sidebar B/W con modo/hands/FPS.
 
@@ -145,9 +145,9 @@ the-machine/
   controllers/
     hand.py          # FingerLSTM x5 + HandController (count/action/train/save/load)
     gestures.py      # MusicGestureController (ventana, agreement, cooldown, pending)
-    volume.py        # VolumeController (Perceptron 2-f, commit por meñique, re-arm)
+    volume.py        # VolumeController (Perceptron 2-f, commit por meñique↔pulgar, re-arm)
   core/
-    fingers.py       # features_from_landmarks + ring_thumb_distance + pinky_ring_distance
+    fingers.py       # features_from_landmarks + index_thumb_distance + pinky_thumb_distance
     perceptron.py, results.py, handedness.py, gestures.py
     playlist.py      # scan_sagas(base)
   config/

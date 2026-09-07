@@ -11,7 +11,7 @@ import pygame
 
 from app.registry import TEST_NAMES, TESTS
 from app.vision import make_landmarker, make_recognizer
-from config.settings import WINDOW, VisionSettings, WindowSettings
+from config.settings import VISION, WINDOW, VisionSettings, WindowSettings
 from config.strings import (
     MUSIC_ACTION_NEXT_SAGA,
     MUSIC_ACTION_NEXT_SONG,
@@ -54,12 +54,20 @@ def run(
     if not 0 <= mode_idx < len(TEST_NAMES):
         raise ValueError(f"mode_idx fuera de rango: {mode_idx}")
 
-    landmarker = make_landmarker(vision_cfg) if vision_cfg else make_landmarker()
-    recognizer = make_recognizer(vision_cfg) if vision_cfg else make_recognizer()
+    vision = vision_cfg or VISION
+    landmarker = make_landmarker(vision)
+    recognizer = make_recognizer(vision)
     cam = Camera(window_cfg.camera_width, window_cfg.camera_height)
     window = Window(window_cfg.width, window_cfg.height, window_cfg.title)
     clock = pygame.time.Clock()
     player = MusicPlayer()
+
+    cam_w = window_cfg.camera_width
+    cam_h = window_cfg.camera_height
+    infer_w = max(160, int(cam_w * vision.inference_scale))
+    infer_h = max(120, int(cam_h * vision.inference_scale))
+    downscale = infer_w != cam_w
+    canvas = np.zeros((window_cfg.height, window_cfg.width, 3), dtype=np.uint8)
 
     with contextlib.ExitStack() as stack:
         stack.callback(cam.release)
@@ -74,7 +82,8 @@ def run(
                 break
 
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            mp_img = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
+            infer = cv2.resize(rgb, (infer_w, infer_h), interpolation=cv2.INTER_AREA) if downscale else rgb
+            mp_img = mp.Image(image_format=mp.ImageFormat.SRGB, data=infer)
             ts = int(time.time() * 1000)
 
             name = TEST_NAMES[current]
@@ -127,8 +136,8 @@ def run(
             apply_cctv_effect(out)
             draw_sidebar(out, name, hand_count, fps)
 
-            canvas = np.zeros((window_cfg.height, window_cfg.width, 3), dtype=np.uint8)
-            canvas[: window_cfg.camera_height, : window_cfg.camera_width] = out
+            canvas.fill(0)
+            canvas[: cam_h, :cam_w] = out
             window.show(canvas)
 
             should_quit, current = _handle_events(current)

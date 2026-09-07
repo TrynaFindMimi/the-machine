@@ -36,14 +36,14 @@ Flujo del modo music (por frame, bifurcacion sobre el anterior):
 ```
 [mano derecha] presentation/modes/music.draw(right hand landmarks)
     ↓ core/fingers.features_from_landmarks → 5 binarias (±1) + hand-sign
-    ↓ controllers/gestures.MusicGestureController.feed → window(8), agreement(4), cooldown(12)
+    ↓ controllers/gestures.MusicGestureController.feed → window(8), agreement(4), rate limit(3s)
     ↓ controllers/hand.HandController.count → 5x FingerLSTM → count → action(0=PAUSE,1=PREV SONG,2=NEXT SONG,3=PREV SAGA,4=NEXT SAGA,5=PLAY)
     ↓ .pending queda como accion
 app/runner.consume_pending_action() → player.play()/pause()/prev|next song|saga
 
 [mano izquierda] presentation/modes/music.draw(left hand landmarks)
-    ↓ core/fingers.ring_thumb_distance / pinky_ring_distance (normalizadas por hand_scale)
-    ↓ controllers/volume.VolumeController.feed → Perceptron (2 features) → nivel 0..1; commit al unir meñique, re-arm al separar
+    ↓ core/fingers.index_thumb_distance / pinky_thumb_distance (normalizadas por hand_scale)
+    ↓ controllers/volume.VolumeController.feed → Perceptron (2 features) → nivel 0..1; commit al unir meñique↔pulgar, re-arm al separar
     ↓ .pending queda como volumen
 app/runner.consume_pending_volume() → player.set_volume()
     ↓ pygame.mixer.music (devicename desde config/settings.AUDIO) → sink PulseAudio/bluetooth

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pathlib
+import time
 from typing import Final
 
 import numpy as np
@@ -8,6 +9,8 @@ from numpy.typing import NDArray
 
 from config.settings import PERCEPTRON, VOLUME
 from core.perceptron import Perceptron
+
+COMMIT_COOLDOWN_SECONDS: Final = 3.0
 
 
 def _build_dataset(
@@ -37,6 +40,7 @@ class VolumeController:
         self._ema: float | None = None
         self._last_joined: bool = False
         self._saved: float | None = None
+        self._next_commit: float = 0.0
         self.pending: float | None = None
 
     def _vol_from_dist(self, d: float) -> float:
@@ -76,13 +80,22 @@ class VolumeController:
         if joined:
             was_joined = self._last_joined
             self._last_joined = True
-            if not was_joined:
+            now = time.monotonic()
+            if not was_joined and now >= self._next_commit:
                 self._saved = self._vol_from_dist(self._ema)
                 self.pending = self._saved
+                self._next_commit = now + COMMIT_COOLDOWN_SECONDS
         else:
             self._last_joined = False
-        preview = self._saved if self._last_joined and self._saved is not None else self._vol_from_dist(self._ema)
+        if self._last_joined and self._saved is not None:
+            preview = self._saved
+        else:
+            preview = self._vol_from_dist(self._ema)
         return preview, self._saved if self.pending is not None else None
+
+    @property
+    def joined(self) -> bool:
+        return self._last_joined
 
     def consume_pending_volume(self) -> float | None:
         volume = self.pending
@@ -93,4 +106,5 @@ class VolumeController:
         self._ema = None
         self._last_joined = False
         self._saved = None
+        self._next_commit = 0.0
         self.pending = None

@@ -25,22 +25,22 @@ class WindowSettings:
 class VisionSettings:
     landmarker_path: str = "models/hand_landmarker.task"
     gesture_path: str = "models/gesture_recognizer.task"
-    num_hands_landmarker: int = 20
+    num_hands_landmarker: int = 2
     num_hands_gesture: int = 2
     min_detection_confidence: float = 0.5
     min_tracking_confidence: float = 0.5
+    inference_scale: float = 0.6
 
 
 @dataclass(frozen=True, slots=True)
 class AudioSettings:
     driver: str = "pulseaudio"
-    device: str = "AirPods Max - Find My"
+    device: str | None = None
     frequency: int = 44100
     size: int = -16
     channels: int = 2
     buffer: int = 512
     volume: float = 1.0
-    auto_find_bluetooth: bool = True
 
 
 @dataclass(frozen=True, slots=True)

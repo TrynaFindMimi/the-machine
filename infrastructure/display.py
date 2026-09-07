@@ -20,7 +20,7 @@ class Window:
 
     def show(self, canvas: NDArray[np.uint8]) -> None:
         rgb_out = cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB)
-        surface = pygame.surfarray.make_surface(np.transpose(rgb_out, (1, 0, 2)))
+        surface = pygame.image.frombuffer(rgb_out.tobytes(), (self.w, self.h), "RGB")
         self.screen.blit(surface, (0, 0))
         pygame.display.flip()
 

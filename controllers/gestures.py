@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from typing import Final
 
 import numpy as np
@@ -9,7 +10,7 @@ from controllers.hand import HandController
 
 WINDOW_LEN: Final = 8
 AGREE_REQUIRED: Final = 4
-COOLDOWN_FRAMES: Final = 12
+RATE_LIMIT_SECONDS: Final = 3.0
 
 
 class MusicGestureController:
@@ -19,7 +20,7 @@ class MusicGestureController:
         self.window: list[NDArray[np.float64]] = []
         self.agreement: int = 0
         self.last_count: int = -1
-        self.cooldown: int = 0
+        self._cooldown_until: float = 0.0
         self.pending: str = ""
 
     def load_or_train(self) -> None:
@@ -30,7 +31,7 @@ class MusicGestureController:
         self.window = []
         self.agreement = 0
         self.last_count = -1
-        self.cooldown = 0
+        self._cooldown_until = 0.0
         self.pending = ""
 
     def consume_pending_action(self) -> str:
@@ -39,10 +40,10 @@ class MusicGestureController:
         return action
 
     def _apply_action(self, count: int) -> str:
-        if self.cooldown > 0:
-            self.cooldown -= 1
+        now = time.monotonic()
+        if now < self._cooldown_until:
             return ""
-        self.cooldown = COOLDOWN_FRAMES
+        self._cooldown_until = now + RATE_LIMIT_SECONDS
         action = self.hand.action(count)
         if action:
             self.pending = action

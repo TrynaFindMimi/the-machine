@@ -24,8 +24,8 @@ from controllers.volume import VolumeController
 from core.fingers import (
     features_from_landmarks,
     hand_scale,
-    pinky_ring_distance,
-    ring_thumb_distance,
+    index_thumb_distance,
+    pinky_thumb_distance,
 )
 from core.handedness import LEFT, RIGHT, get_handedness
 from core.results import count_hands, to_pixel_points
@@ -159,8 +159,8 @@ def draw(frame: NDArray[np.uint8], results) -> tuple[NDArray[np.uint8], int]:
         draw_skeleton(frame, left_pts)
         vc = _get_volume()
         scale = hand_scale(left_lm)
-        distance = ring_thumb_distance(left_lm, scale)
-        joined = pinky_ring_distance(left_lm, scale) < 0.06
+        distance = index_thumb_distance(left_lm, scale)
+        joined = pinky_thumb_distance(left_lm, scale) < 0.06
         preview, pending = vc.feed(distance, joined)
         _draw_volume_ui(frame, preview, pending, _bbox_tuple(left_pts))
         lx = min(p[0] for p in left_pts)
