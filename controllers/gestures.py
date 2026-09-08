@@ -10,7 +10,8 @@ from controllers.hand import HandController
 
 WINDOW_LEN: Final = 8
 AGREE_REQUIRED: Final = 4
-RATE_LIMIT_SECONDS: Final = 3.0
+RATE_LIMIT_SECONDS: Final = 1.5
+SETTLE_SECONDS: Final = 0.45
 
 
 class MusicGestureController:
@@ -20,6 +21,8 @@ class MusicGestureController:
         self.window: list[NDArray[np.float64]] = []
         self.agreement: int = 0
         self.last_count: int = -1
+        self._last_change_at: float = 0.0
+        self._last_fired: int = -1
         self._cooldown_until: float = 0.0
         self.pending: str = ""
 
@@ -31,6 +34,8 @@ class MusicGestureController:
         self.window = []
         self.agreement = 0
         self.last_count = -1
+        self._last_change_at = time.monotonic()
+        self._last_fired = -1
         self._cooldown_until = 0.0
         self.pending = ""
 
@@ -41,9 +46,12 @@ class MusicGestureController:
 
     def _apply_action(self, count: int) -> str:
         now = time.monotonic()
+        if count == self._last_fired:
+            return ""
         if now < self._cooldown_until:
             return ""
         self._cooldown_until = now + RATE_LIMIT_SECONDS
+        self._last_fired = count
         action = self.hand.action(count)
         if action:
             self.pending = action
@@ -57,11 +65,17 @@ class MusicGestureController:
             return -1, ""
         window_np = np.stack(self.window, axis=0)
         count = self.hand.count(window_np)
+        now = time.monotonic()
         if count == self.last_count:
             self.agreement += 1
         else:
             self.agreement = 1
             self.last_count = count
-        if self.agreement >= AGREE_REQUIRED:
+            self._last_change_at = now
+            self._last_fired = -1
+        if (
+            self.agreement >= AGREE_REQUIRED
+            and now - self._last_change_at >= SETTLE_SECONDS
+        ):
             return count, self._apply_action(count)
         return count, ""

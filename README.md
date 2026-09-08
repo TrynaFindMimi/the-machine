@@ -1,6 +1,6 @@
 # the-machine
 
-Deteccion de manos y gestos en tiempo real usando MediaPipe y OpenCV + estilo CCTV minimalista. Incluye un reproductor de musica (EPIC: The Musical) controlado por gestos de la mano derecha mediante 5 LSTMs (uno por dedo).
+Deteccion de manos y gestos en tiempo real usando MediaPipe y OpenCV + estilo CCTV minimalista. Incluye un reproductor de musica (EPIC: The Musical) controlado por gestos de la mano derecha mediante 5 RNNs (una por dedo).
 
 > La musica incluida es obra de Jorge Hernan (EPIC: The Musical) y se distribuye con fines academicos, sin animo de lucro. Ver [CREDITS.md](CREDITS.md).
 
@@ -39,7 +39,7 @@ wget "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landm
 wget "https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task"
 ```
 
-Los pesos LSTM por dedo (`models/finger_*.npz`) ya estan versionados; si faltan, el modo music los reentrena al iniciarse.
+Los pesos RNN por dedo (`models/finger_*.npz`) ya estan versionados; si faltan, el modo music los reentrena al iniciarse.
 
 ### 4. Ejecutar
 
@@ -86,11 +86,13 @@ venv/bin/python -c "import os; os.environ['SDL_AUDIODRIVER']='pulseaudio'; impor
 ### Como se decide el gesto (capas)
 
 ```
-core/fingers.features_from_landmarks → 5 binarias (±1, pulgar: punta vs mcp indice 0.02 / resto y 0.15) + hand-sign
-controllers/hand.HandController → 5x FingerLSTM (secuencia de 8 features por dedo) → count()
-controllers/gestures.MusicGestureController → ventana, agreement (4), rate limit (3s), mapeo count→accion
+core/fingers.features_from_landmarks → 5 binarias (±1, coseno del angulo de flexion MCP→PIP→TIP; umbrales por dedo: pulgar 0.50, indice 0.45, medio 0.45, anular 0.35, meñique 0.45) + hand-sign
+controllers/hand.HandController → 5x FingerRNN (secuencia de 8 features por dedo) → count()
+controllers/gestures.MusicGestureController → ventana, agreement (4), settle (0.45s), rate limit (1.5s), mapeo count→accion
 app/runner → consume_pending_action → player.play()/pause()/prev/next song|saga
 ```
+
+La extension de cada dedo se mide como el coseno del angulo de flexion en la articulacion PIP (segmentos `MCP→PIP` y `PIP→TIP`). Esta medida es independiente de la orientacion de la mano y robusta al gesto de 3 dedos: el anular apenas se extiende cuando el meñique queda recogido (tendones extensoras compartidos), por eso recibe un umbral mas permisivo (0.35). Detalle completo en [INFO.md](docs/informe.md).
 
 Volumen (mano izquierda):
 
@@ -108,7 +110,7 @@ app/runner → consume_pending_volume → player.set_volume()
 
 **position** — GestureRecognizer (2 manos, paleta B/W). Gestos: Closed_Fist, Open_Palm, Pointing_Up, Thumb_Down, Thumb_Up, Victory, ILoveYou. Bounding box/skeleton/landmarks en `WHITE` sin borde negro + fuente grande legible con caja `BLACK` (`_put_text_box`) + `%` confianza por mano.
 
-**music** — Reproductor de EPIC por sagas (folders `NN Title.mp3`). UI con caja negra (`_put_text_box`): SAGA, SONG, TRACK, STATE, FINGERS (LSTM) y ACTION. Tags negros estilo `position`. Mano derecha controla reproduccion/navegacion (con cooldown anti-repeticion); mano izquierda controla volumen (distancia indice↔pulgar, commit cuando meñique se junta con pulgar).
+**music** — Reproductor de EPIC por sagas (folders `NN Title.mp3`). UI con caja negra (`_put_text_box`): SAGA, SONG, TRACK, STATE, FINGERS (RNN) y ACTION. Tags negros estilo `position`. Mano derecha controla reproduccion/navegacion (con settle + cooldown anti-repeticion); mano izquierda controla volumen (distancia indice↔pulgar, commit cuando meñique se junta con pulgar).
 
 Estilo global: overlay CCTV monocromo (scanlines, viñeta), sidebar B/W con modo/hands/FPS.
 
@@ -118,17 +120,17 @@ Estilo global: overlay CCTV monocromo (scanlines, viñeta), sidebar B/W con modo
 main.py              → fachada (parsea args)
 app/                 → orquestación (runner, vision, registry)
 presentation/        → UI (modes/ + ui/theme|layout|drawing|effects)
-controllers/         → gesto→accion (hand: HandController LSTM, gestures: MusicGestureController)
+controllers/         → gesto→accion (hand: HandController RNN, gestures: MusicGestureController)
 core/                → dominio puro (finger_features, perceptron, results, handedness, gestures, playlist)
 config/              → configuración (palette, strings, settings)
 common/              → transversal (fps)
 infrastructure/      → adapters (capture, display, player)
-models/              → .task preentrenados + finger_*.npz (LSTM)
+models/              → .task preentrenados + finger_*.npz (RNN)
 music/               → sagas (mp3)
 docs/                → documentación por capa
 ```
 
-Regla: `presentation → controllers/core → config/common`, `app → presentation/controllers/infrastructure`, `main → app/config`. `presentation` no importa `infrastructure`; la accion del gesto se comunica via `MusicGestureController.pending` (u `consume_pending_action()`). Ver `docs/architecture.md`.
+Regla: `presentation → controllers/core → config/common`, `app → presentation/controllers/infrastructure`, `main → app/config`. `presentation` no importa `infrastructure`; la accion del gesto se comunica via `MusicGestureController.pending` (u `consume_pending_action()`). Ver `docs/architecture.md` e [INFO.md](docs/informe.md) para el informe detallado de arquitectura y proyecto.
 
 ## Estructura de archivos
 
@@ -143,7 +145,7 @@ the-machine/
     modes/hand.py, line.py, position.py, music.py
     ui/theme.py, layout.py, drawing.py, effects.py
   controllers/
-    hand.py          # FingerLSTM x5 + HandController (count/action/train/save/load)
+    hand.py          # FingerRNN x5 + HandController (count/action/train/save/load)
     gestures.py      # MusicGestureController (ventana, agreement, cooldown, pending)
     volume.py        # VolumeController (Perceptron 2-f, commit por meñique↔pulgar, re-arm)
   core/
@@ -160,6 +162,6 @@ the-machine/
   music/
     01 The Troy Saga/ ... 09 The Ithaca Saga/
   docs/
-    architecture.md, modes.md, layers.md, mediapipe.md, perceptron.md, opencv.md, pygame.md
+    informe.md, architecture.md, modes.md, layers.md, mediapipe.md, perceptron.md, opencv.md, pygame.md
   CREDITS.md
 ```

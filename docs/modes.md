@@ -19,18 +19,18 @@ Perceptron en vivo por mano (P_A=4 thumb tip, P_B=8 index tip). `build_dataset` 
 Reproductor de EPIC: The Musical por sagas. Procesa ambas manos: derecha para navegacion/accion, izquierda para volumen (`core/handedness.get_handedness` + flip corregido). UI de tags negros estilo position vía `_put_text_box`: título `0.70/2`, SAGA `0.55/2`, SONG `0.45/1`, TRACK `0.45/1`, STATE `0.55/1`, FINGERS `0.5/1`, ACTION `0.5/1`, etiquetas Right/Left junto a sus bboxes, barra de volumen con label VOLUME/SAVED.
 
 Pipeline por frame (mano derecha — acciones):
-- `core/fingers.features_from_landmarks` → 5 features binarias (±1): pulgar por diferencia `dist(tip 4 → mcp indice 5) - dist(ip 3 → mcp indice 5)` (umbral `0.02`), resto por delta `y` (`0.15`) + 6ª feature hand-sign (no usada para contar).
-- `controllers/hand.HandController.count(window 8x6)` → 5 `FingerLSTM` (uno por dedo) → suma dedos detectados.
-- `controllers/gestures.MusicGestureController.feed(feat)` → ventana `len=8`, agreement `>=4` frames, rate limit `3s` entre acciones, mapeo count→accion.
+- `core/fingers.features_from_landmarks` → 5 features binarias (±1) por dedo: coseno del ángulo de flexión entre segmentos `MCP→PIP` y `PIP→TIP` (`_finger_extension`), independiente de la orientación de la mano; umbrales por dedo `EXTEND_THRESHOLDS=(0.50, 0.45, 0.45, 0.35, 0.45)` (pulgar/índice/medio/anular/meñique; anular más permisivo porque en el gesto "3" apenas se extiende al quedar el meñique recogido) + 6ª feature hand-sign (no usada para contar).
+- `controllers/hand.HandController.count(window 8x6)` → 5 `FingerRNN` (una por dedo) → suma dedos detectados.
+- `controllers/gestures.MusicGestureController.feed(feat)` → ventana `len=8`, agreement `>=4` frames, settle `>=0.45s` sin cambios, rate limit `1.5s` entre acciones, mapeo count→accion.
 - `consume_pending_action()` → el runner despacha `player.play()/pause()/prev/next song|saga`.
 
 Mano izquierda — volumen:
 - `core/fingers.index_thumb_distance / pinky_thumb_distance` → distancias euclideas tip↔tip normalizadas.
 - `controllers/volume.VolumeController.feed(dist, joined)` → `Perceptron` (2 features, entrenado cerca/lejos) mapea distancia a nivel continuo 0..1 (indice+pulgar juntos=0, separados=100). El meñique cercano al pulgar (dist < `pinky_join` thresh) dispara el commit (`consume_pending_volume()` → `player.set_volume()`). Re-arm al separar.
 
-Las acciones de la mano derecha llevan rate limit anti-repeticion (`MusicGestureController`, 3s): mientras se mantiene el gesto, el comando no se re-despacha.
+Las acciones de la mano derecha llevan **settle** anti-sweep (`MusicGestureController`, `SETTLE_SECONDS=0.45`): la accion solo se despacha cuando el conteo lleva esa fraccion de segundo sin cambiar, y cada gesto dispara una sola vez (no se repite mientras se mantiene, `_last_fired`); además hay rate limit de `1.5s` entre acciones.
 
-Gestos (mano derecha): 0=PAUSE, 1=PREV SONG, 2=NEXT SONG, 3=PREV SAGA, 4=NEXT SAGA, 5=PLAY. `FingerLSTM` (hidden=8, 60 epochs, sin dropout) entrenado con ruido gaussiano en `models/finger_*.npz` (`HandController.train_all`); `Perceptron` (2 features, 3000 epochs) en `models/volume.npz`; si faltan, se reentrenan al iniciar.
+Gestos (mano derecha): 0=PAUSE, 1=PREV SONG, 2=NEXT SONG, 3=PREV SAGA, 4=NEXT SAGA, 5=PLAY. `FingerRNN` (hidden=8, 45 epochs, sin dropout) entrenado en `models/finger_*.npz` (`HandController.train_all` con mezclas ±1 y noise); `Perceptron` (2 features, 3000 epochs) en `models/volume.npz`; si faltan, se reentrenan al iniciar.
 
 ## Ciclo
 
