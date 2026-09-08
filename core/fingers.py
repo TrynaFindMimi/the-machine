@@ -16,7 +16,45 @@ _INDEX_TIP: int = 8
 _PINKY_TIP: int = 20
 
 EXTEND_THRESHOLDS: Final[tuple[float, ...]] = (0.50, 0.45, 0.45, 0.35, 0.45)
-THUMB_EXTEND_MIN_DIST: Final = 0.35
+THUMB_EXTEND_PADDING: Final = 0.15
+THUMB_PALM_IDS: Final[tuple[int, ...]] = (5, 7, 9, 13, 17)
+THUMB_QUAD: Final[tuple[int, ...]] = (5, 17, 1, 9)
+
+_THUMB_W: NDArray[np.float64] | None = None
+
+
+def set_thumb_weights(w: NDArray[np.float64]) -> None:
+    global _THUMB_W
+    _THUMB_W = np.asarray(w, dtype=np.float64)
+
+
+def thumb_tip_inside(hand_landmarks) -> bool:
+    return _point_in_quad(_THUMB_TIP, hand_landmarks)
+
+
+def thumb_palm_features(hand_landmarks, scale: float) -> NDArray[np.float64]:
+    s = scale if scale > 1e-6 else 1.0
+    tip = hand_landmarks[_THUMB_TIP]
+    d_near = (
+        min(_point_distance(tip, hand_landmarks[i]) for i in THUMB_PALM_IDS) / s
+    )
+    inside = 1.0 if thumb_tip_inside(hand_landmarks) else 0.0
+    return np.asarray([d_near, inside, 1.0], dtype=np.float64)
+
+
+def _point_in_quad(tip: int, hand_landmarks) -> bool:
+    px = float(hand_landmarks[tip].x)
+    py = float(hand_landmarks[tip].y)
+    inside = False
+    n = len(THUMB_QUAD)
+    for i in range(n):
+        x1, y1 = hand_landmarks[THUMB_QUAD[i]].x, hand_landmarks[THUMB_QUAD[i]].y
+        x2, y2 = hand_landmarks[THUMB_QUAD[(i + 1) % n]].x, hand_landmarks[THUMB_QUAD[(i + 1) % n]].y
+        if (y1 > py) != (y2 > py):
+            x_at = x1 + (py - y1) * (x2 - x1) / (y2 - y1)
+            if px < x_at:
+                inside = not inside
+    return inside
 
 
 def _finger_extension(hand_landmarks, mcp: int, pip: int, tip: int) -> float:
@@ -41,7 +79,15 @@ def _thumb_extended(hand_landmarks) -> bool:
         return False
     d_tip = _point_distance(hand_landmarks[_THUMB_TIP], hand_landmarks[_INDEX_MCP])
     d_ip = _point_distance(hand_landmarks[3], hand_landmarks[_INDEX_MCP])
-    return (d_tip - d_ip) / idx_len > 0.08
+    return (d_tip - d_ip) / idx_len > THUMB_EXTEND_PADDING
+
+
+def thumb_extended_palm(hand_landmarks) -> bool:
+    if _THUMB_W is not None:
+        scale = hand_scale(hand_landmarks)
+        feat = thumb_palm_features(hand_landmarks, scale)
+        return float(np.dot(_THUMB_W, feat)) >= 0.0
+    return _thumb_extended(hand_landmarks)
 
 
 def hand_scale(hand_landmarks) -> float:
@@ -72,7 +118,7 @@ def features_from_landmarks(hand_landmarks, w: int, h: int) -> NDArray[np.float6
     features: list[float] = []
     for i, (mcp, pip, tip, thresh) in enumerate(zip(MCP_IDS, PIP_IDS, TIP_IDS, EXTEND_THRESHOLDS)):
         if i == 0:
-            ext = _thumb_extended(hand_landmarks)
+            ext = thumb_extended_palm(hand_landmarks)
         else:
             ext = _finger_extension(hand_landmarks, mcp, pip, tip) > thresh
         features.append(1.0 if ext else -1.0)
@@ -91,7 +137,7 @@ def count_fingers_geometric(hand_landmarks) -> int:
     count = 0
     for i, (mcp, pip, tip, thresh) in enumerate(zip(MCP_IDS, PIP_IDS, TIP_IDS, EXTEND_THRESHOLDS)):
         if i == 0:
-            ext = _thumb_extended(hand_landmarks)
+            ext = thumb_extended_palm(hand_landmarks)
         else:
             ext = _finger_extension(hand_landmarks, mcp, pip, tip) > thresh
         if ext:

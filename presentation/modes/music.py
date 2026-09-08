@@ -132,12 +132,18 @@ def _draw_volume_ui(
 
 def draw(frame: NDArray[np.uint8], results) -> tuple[NDArray[np.uint8], int]:
     _put_text_box(frame, spaced(MUSIC_TITLE), (10, 22), 0.70, 2, WHITE, BLACK)
+    _put_text_box(frame, MUSIC_SAGA_FMT.format(_saga_name), (10, 70), 0.55, 2, WHITE, BLACK, pad_x=5, pad_y=3)
+    _put_text_box(frame, MUSIC_SONG_FMT.format(_song_name), (10, 100), 0.45, 1, WHITE, BLACK, pad_x=5, pad_y=3)
+    _put_text_box(frame, MUSIC_COUNT_FMT.format(_track_text), (10, 124), 0.45, 1, WHITE, BLACK, pad_x=5, pad_y=3)
+    _put_text_box(frame, MUSIC_STATE_FMT.format(_player_state), (10, 148), 0.55, 1, WHITE, BLACK, pad_x=5, pad_y=3)
     h, w = frame.shape[:2]
     hand_count = count_hands(results)
     landmarks = results.hand_landmarks or []
     if hand_count == 0:
         draw_viewfinder_crosshair(frame, WHITE)
         reset_state()
+        _put_text_box(frame, MUSIC_FINGERS_FMT.format(MUSIC_UNKNOWN), (10, 172), 0.5, 1, WHITE, BLACK, pad_x=5, pad_y=3)
+        _put_text_box(frame, MUSIC_ACTION_FMT.format(MUSIC_UNKNOWN), (10, 196), 0.5, 1, WHITE, BLACK, pad_x=5, pad_y=3)
         return frame, hand_count
 
     right_idx = next(
@@ -150,6 +156,8 @@ def draw(frame: NDArray[np.uint8], results) -> tuple[NDArray[np.uint8], int]:
     )
     if right_idx is None and left_idx is None:
         reset_state()
+        _put_text_box(frame, MUSIC_FINGERS_FMT.format(MUSIC_UNKNOWN), (10, 172), 0.5, 1, WHITE, BLACK, pad_x=5, pad_y=3)
+        _put_text_box(frame, MUSIC_ACTION_FMT.format(MUSIC_UNKNOWN), (10, 196), 0.5, 1, WHITE, BLACK, pad_x=5, pad_y=3)
         return frame, hand_count
 
     if left_idx is not None:
@@ -181,10 +189,6 @@ def draw(frame: NDArray[np.uint8], results) -> tuple[NDArray[np.uint8], int]:
         _get_gesture().reset()
         count, action = -1, ""
 
-    _put_text_box(frame, MUSIC_SAGA_FMT.format(_saga_name), (10, 70), 0.55, 2, WHITE, BLACK, pad_x=5, pad_y=3)
-    _put_text_box(frame, MUSIC_SONG_FMT.format(_song_name), (10, 100), 0.45, 1, WHITE, BLACK, pad_x=5, pad_y=3)
-    _put_text_box(frame, MUSIC_COUNT_FMT.format(_track_text), (10, 124), 0.45, 1, WHITE, BLACK, pad_x=5, pad_y=3)
-    _put_text_box(frame, MUSIC_STATE_FMT.format(_player_state), (10, 148), 0.55, 1, WHITE, BLACK, pad_x=5, pad_y=3)
     _put_text_box(frame, MUSIC_FINGERS_FMT.format(count if count >= 0 else MUSIC_UNKNOWN), (10, 172), 0.5, 1, WHITE, BLACK, pad_x=5, pad_y=3)
     _put_text_box(frame, MUSIC_ACTION_FMT.format(action if action else MUSIC_UNKNOWN), (10, 196), 0.5, 1, WHITE, BLACK, pad_x=5, pad_y=3)
 

@@ -7,6 +7,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from controllers.hand import HandController
+from controllers.thumb import ThumbPerceptron
 
 WINDOW_LEN: Final = 8
 AGREE_REQUIRED: Final = 4
@@ -18,6 +19,7 @@ class MusicGestureController:
     def __init__(self, window: int = WINDOW_LEN) -> None:
         self.window_len = window
         self.hand = HandController()
+        self.thumb = ThumbPerceptron()
         self.window: list[NDArray[np.float64]] = []
         self.agreement: int = 0
         self.last_count: int = -1
@@ -27,6 +29,7 @@ class MusicGestureController:
         self.pending: str = ""
 
     def load_or_train(self) -> None:
+        self.thumb.load_or_train()
         if not self.hand.load():
             self.hand = HandController.train_all(window=self.window_len)
 

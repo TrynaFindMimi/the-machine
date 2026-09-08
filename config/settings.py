@@ -56,6 +56,13 @@ class PerceptronSettings:
 
 
 @dataclass(frozen=True, slots=True)
+class ThumbSettings:
+    fold_dist: float = 0.10
+    extend_dist: float = 0.13
+    model_path: str = "models/thumb.npz"
+
+
+@dataclass(frozen=True, slots=True)
 class VolumeSettings:
     near: float = 0.10
     far: float = 0.45
@@ -69,3 +76,4 @@ VISION: Final = VisionSettings()
 AUDIO: Final = AudioSettings()
 PERCEPTRON: Final = PerceptronSettings()
 VOLUME: Final = VolumeSettings()
+THUMB: Final = ThumbSettings()

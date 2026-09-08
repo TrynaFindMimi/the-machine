@@ -1,6 +1,6 @@
 # the-machine
 
-Deteccion de manos y gestos en tiempo real usando MediaPipe y OpenCV + estilo CCTV minimalista. Incluye un reproductor de musica (EPIC: The Musical) controlado por gestos de la mano derecha mediante 5 RNNs (una por dedo).
+Deteccion de manos y gestos en tiempo real usando MediaPipe y OpenCV, con una interfaz de estilo "Grecia antigua / EPIC: The Musical" (paleta basalto/bronce/dorado/marmol y motivos griegos). Incluye un reproductor de musica (EPIC: The Musical) controlado por gestos de la mano derecha: un Perceptron para el pulgar y 4 RNNs (una por dedo restante), y volumen por la mano izquierda (Perceptron).
 
 > La musica incluida es obra de Jorge Hernan (EPIC: The Musical) y se distribuye con fines academicos, sin animo de lucro. Ver [CREDITS.md](CREDITS.md).
 
@@ -26,7 +26,7 @@ pip install opencv-python mediapipe numpy pygame
 
 | Libreria | Que hace |
 |----------|----------|
-| **opencv-python** | Captura video, dibujo CCTV |
+| **opencv-python** | Captura video, preprocesado y dibujo de la UI |
 | **mediapipe** | 21 landmarks + 8 gestos |
 | **numpy** | Perceptron y coordenadas |
 | **pygame** | Ventana 1280x720 |
@@ -60,12 +60,12 @@ python main.py music        # inicia en music player
 
 | Gestos (mano derecha) | Accion |
 |-------|--------|
-| Mano cerrada (0 dedos) | Pausar |
+| Mano cerrada (0 dedos) | Saga anterior |
 | 1 dedo | Cancion anterior |
-| 2 dedos | Siguiente cancion |
-| 3 dedos | Saga anterior |
-| 4 dedos | Siguiente saga |
-| Mano abierta (5 dedos) | Reproducir |
+| 2 dedos | Pausar |
+| 3 dedos | Reproducir |
+| 4 dedos | Siguiente cancion |
+| Mano abierta (5 dedos) | Siguiente saga |
 
 | Mano izquierda | Accion |
 |-------|--------|
@@ -76,7 +76,7 @@ El volumen de la mano izquierda usa un `Perceptron` (2 features: distancia indic
 
 ### Como se elige el dispositivo de audio
 
-El dispositivo de salida se configura en `config/settings.py` (`AudioSettings`): driver `pulseaudio` y devicename preferido (por ejemplo `AirPods Max`). Con `auto_find_bluetooth=True` (por defecto), en cada `play()` se consultan los dispositivos que expone SDL y se reproduce en el primer auricular/cascos bluetooth detectado (match por nombre preferido o por keyword de `bluetooth_keywords`); si no hay ninguno, se usa el dispositivo de sistema por defecto. El mixer se re-inicializa con ese dispositivo en cada `play()`.
+El dispositivo de salida se configura en `config/settings.py` (`AudioSettings`): driver `pulseaudio` y `device` opcional (ej. `AirPods Max`). `infrastructure/player.py` setea `SDL_AUDIODRIVER` desde `AUDIO.driver` y re-inicializa `pygame.mixer` en cada `play()`, usando `AUDIO.device` como `devicename` (si es `None`, SDL usa el dispositivo por defecto del sistema). Si la inicialización con el dispositivo falla, reintenta sin `devicename`.
 
 ```bash
 # listar los dispositivos de audio que ve SDL
@@ -86,13 +86,14 @@ venv/bin/python -c "import os; os.environ['SDL_AUDIODRIVER']='pulseaudio'; impor
 ### Como se decide el gesto (capas)
 
 ```
-core/fingers.features_from_landmarks → 5 binarias (±1, coseno del angulo de flexion MCP→PIP→TIP; umbrales por dedo: pulgar 0.50, indice 0.45, medio 0.45, anular 0.35, meñique 0.45) + hand-sign
-controllers/hand.HandController → 5x FingerRNN (secuencia de 8 features por dedo) → count()
+core/fingers.features_from_landmarks → 5 binarias (±1): indice/medio/anular/meñique por coseno del angulo de flexion MCP→PIP→TIP (umbrales 0.45/0.45/0.35/0.45) + pulgar por Perceptron 3-features (dist a puntos de la palma {5,7,9,13,17} + dentro del cuadrilatero 5-17-1-9 + bias) + hand-sign
+controllers/thumb.ThumbPerceptron → pesos models/thumb.npz; decisión por frame del pulgar
+controllers/hand.HandController → 4x FingerRNN (secuencia de 8 features por dedo) + mayoría del pulgar sobre la ventana → count()
 controllers/gestures.MusicGestureController → ventana, agreement (4), settle (0.45s), rate limit (1.5s), mapeo count→accion
 app/runner → consume_pending_action → player.play()/pause()/prev/next song|saga
 ```
 
-La extension de cada dedo se mide como el coseno del angulo de flexion en la articulacion PIP (segmentos `MCP→PIP` y `PIP→TIP`). Esta medida es independiente de la orientacion de la mano y robusta al gesto de 3 dedos: el anular apenas se extiende cuando el meñique queda recogido (tendones extensoras compartidos), por eso recibe un umbral mas permisivo (0.35). Detalle completo en [INFO.md](docs/informe.md).
+La extension de cada dedo (excepto pulgar) se mide como el coseno del angulo de flexion en la articulacion PIP (segmentos `MCP→PIP` y `PIP→TIP`), sin importar la orientacion de la mano; el anular recibe umbral mas permisivo (0.35). El **pulgar** ya no usa RNN: un Perceptron binario decide con 3 features respecto a la palma — distancia minima de la punta (P4) a los puntos del cuadrilatero de la palma `{5,7,9,13,17}` normalizada por `hand_scale`, un flag "punta dentro del cuadrilatero (5,17,1,9)" y el bias — entrenado con polos sinteticos "doblado sobre la palma / pegado al indice" vs "extendido lejos", con suavizado por mayoria en la ventana de 8 frames. Detalle completo en [INFO.md](docs/informe.md).
 
 Volumen (mano izquierda):
 
@@ -110,22 +111,22 @@ app/runner → consume_pending_volume → player.set_volume()
 
 **position** — GestureRecognizer (2 manos, paleta B/W). Gestos: Closed_Fist, Open_Palm, Pointing_Up, Thumb_Down, Thumb_Up, Victory, ILoveYou. Bounding box/skeleton/landmarks en `WHITE` sin borde negro + fuente grande legible con caja `BLACK` (`_put_text_box`) + `%` confianza por mano.
 
-**music** — Reproductor de EPIC por sagas (folders `NN Title.mp3`). UI con caja negra (`_put_text_box`): SAGA, SONG, TRACK, STATE, FINGERS (RNN) y ACTION. Tags negros estilo `position`. Mano derecha controla reproduccion/navegacion (con settle + cooldown anti-repeticion); mano izquierda controla volumen (distancia indice↔pulgar, commit cuando meñique se junta con pulgar).
+**music** — Reproductor de EPIC por sagas (folders `NN Title.mp3`). UI con caja negra (`_put_text_box`): SAGA, SONG, TRACK, STATE, FINGERS (4 RNN + Perceptron de pulgar) y ACTION. Tags negros estilo `position`. Mano derecha controla reproduccion/navegacion (con settle + cooldown anti-repeticion); mano izquierda controla volumen (distancia indice↔pulgar, commit cuando meñique se junta con pulgar).
 
-Estilo global: overlay CCTV monocromo (scanlines, viñeta), sidebar B/W con modo/hands/FPS.
+Estilo global: temática griega. Paleta `config/palette.py` con basalto (fondo), bronce (bordes/relieves), dorado (acentos), marfil/piedra (texto) y oliva (live). `presentation/ui/layout.draw_sidebar` dibuja un panel BASALT con `draw_fret_band` (banda de friso) y lista de modos/HANDS/FPS/CONTROLS. El helper `apply_cctv_effect` existe pero queda como no-op (efecto CCTV desactivado); `presentation/ui/greek.py` aporta los motivos (panel, friso, frontón, laurel, texto centrado). Los modos dibujan esqueleto/bbox en `WHITE` sobre `BLACK` (crosshair si no hay mano).
 
 ## Arquitectura en Capas
 
 ```
 main.py              → fachada (parsea args)
 app/                 → orquestación (runner, vision, registry)
-presentation/        → UI (modes/ + ui/theme|layout|drawing|effects)
-controllers/         → gesto→accion (hand: HandController RNN, gestures: MusicGestureController)
+presentation/        → UI (modes/ + ui/theme|layout|drawing|effects|greek)
+controllers/         → gesto→accion (hand: 4x HandController RNN, thumb: ThumbPerceptron, gestures: MusicGestureController)
 core/                → dominio puro (finger_features, perceptron, results, handedness, gestures, playlist)
 config/              → configuración (palette, strings, settings)
 common/              → transversal (fps)
 infrastructure/      → adapters (capture, display, player)
-models/              → .task preentrenados + finger_*.npz (RNN)
+models/              → .task preentrenados + finger_1..4.npz (RNN) + thumb.npz / volume.npz (Perceptron)
 music/               → sagas (mp3)
 docs/                → documentación por capa
 ```
@@ -138,14 +139,15 @@ Regla: `presentation → controllers/core → config/common`, `app → presentat
 the-machine/
   main.py
   app/
-    runner.py        # loop, try/finally, CCTV effects, music context + action dispatch
+    runner.py        # loop, try/finally, sidebar griega + contexto music + dispatch de acciones
     vision.py        # make_landmarker / make_recognizer
     registry.py      # TESTS dict
   presentation/
     modes/hand.py, line.py, position.py, music.py
-    ui/theme.py, layout.py, drawing.py, effects.py
+    ui/theme.py, layout.py, drawing.py, effects.py, greek.py
   controllers/
-    hand.py          # FingerRNN x5 + HandController (count/action/train/save/load)
+    hand.py          # FingerRNN x4 + HandController (count por mayoria de pulgar + RNNs)
+    thumb.py         # ThumbPerceptron (3 features de palma, models/thumb.npz)
     gestures.py      # MusicGestureController (ventana, agreement, cooldown, pending)
     volume.py        # VolumeController (Perceptron 2-f, commit por meñique↔pulgar, re-arm)
   core/
@@ -158,10 +160,10 @@ the-machine/
   infrastructure/
     capture.py, display.py, player.py   # MusicPlayer over pygame.mixer
   models/
-    hand_landmarker.task, gesture_recognizer.task, finger_0..4.npz, volume.npz
+    hand_landmarker.task, gesture_recognizer.task, finger_1..4.npz, thumb.npz, volume.npz
   music/
     01 The Troy Saga/ ... 09 The Ithaca Saga/
   docs/
-    informe.md, architecture.md, modes.md, layers.md, mediapipe.md, perceptron.md, opencv.md, pygame.md
+    informe.md, architecture.md, modes.md, layers.md, mediapipe.md, perceptron.md, opencv.md, pygame.md, utils.md
   CREDITS.md
 ```
