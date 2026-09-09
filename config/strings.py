@@ -28,7 +28,7 @@ MUSIC_UNKNOWN: Final = "-"
 MUSIC_HAND_R: Final = "Right"
 MUSIC_HAND_L: Final = "Left"
 MUSIC_VOLUME_FMT: Final = "VOLUME: {:>3.0f}%"
-MUSIC_VOLUME_SAVED: Final = "VOLUME SAVED {:>3.0f}%"
+MUSIC_ZONE_TITLE: Final = "ZONA EFECTIVA"
 FPS_FMT: Final = "FPS {:05.1f}"
 
 KEYBIND_HINT: Final = "[n]ext [q]uit"

@@ -82,7 +82,11 @@ def run(
                 break
 
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            infer = cv2.resize(rgb, (infer_w, infer_h), interpolation=cv2.INTER_AREA) if downscale else rgb
+            infer = (
+                cv2.resize(rgb, (infer_w, infer_h), interpolation=cv2.INTER_AREA)
+                if downscale
+                else rgb
+            )
             mp_img = mp.Image(image_format=mp.ImageFormat.SRGB, data=infer)
             ts = int(time.time() * 1000)
 
@@ -106,6 +110,7 @@ def run(
                     song.name if song else MUSIC_UNKNOWN,
                     track_text,
                     player.state(),
+                    player.volume,
                 )
 
             out, hand_count = TESTS[name](frame, results)
@@ -134,10 +139,10 @@ def run(
                 player.tick()
             fps = clock.get_fps()
             apply_cctv_effect(out)
-            draw_sidebar(out, name, hand_count, fps)
 
             canvas.fill(0)
-            canvas[: cam_h, :cam_w] = out
+            canvas[:cam_h, :cam_w] = out
+            draw_sidebar(canvas, name, hand_count, fps)
             window.show(canvas)
 
             should_quit, current = _handle_events(current)

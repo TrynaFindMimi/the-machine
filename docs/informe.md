@@ -84,7 +84,7 @@ Webcam → infrastructure/capture.Camera.read()   [flip + resize 1060x720]
     ↓ BGR→RGB + resize de inferencia (60%)
     ↓ app/vision.py → HandLandmarker (hand|line|music) | GestureRecognizer (position)
     ↓ presentation/modes/<modo>.draw(frame, results) → (frame, hand_count)
-    ↓ presentation/ui/layout.draw_sidebar()            [panel BASALT + friso + MODE/HANDS/FPS/CONTROLS]
+    ↓ presentation/ui/layout.draw_sidebar(canvas)     [panel BASALT + friso + MODE/HANDS/FPS/CONTROLS, pegado al borde derecho]
     ↓ infrastructure/display.Window.show(canvas 1280x720)
 ```
 
@@ -177,9 +177,9 @@ Cada frame y mano produce **6 features**:
 
 - 2 features: `w0*distancia + w1` (bias), con distancia normalizada `index_thumb_distance`.
 - Entrenado como clasificador cerca/lejos (dedos juntos → 0, separados → 100), 3000 epochs, pesos en `models/volume.npz`.
-- La salida continua se mapea a `0..1` interpolando entre los extremos `near=0.10` y `far=0.45` (`config/settings.VolumeSettings`).
+- La salida continua se mapea a `0..1` interpolando entre los extremos `near=0.10` y `far=0.80` (`config/settings.VolumeSettings`).
 - Un **EMA** (smoothing 0.35) filtra temblores.
-- El valor se **aplica** (`commit`) solo cuando el meñique se une al pulgar (`pinky_thumb_distance < 0.06`), con cooldown de 3s; se rearma al separarlos.
+- El valor se **aplica en vivo** cada frame mientras la mano izquierda este en camara: la distancia index↔pulgar se mapea directamente a volumen (`feed(dist)` → `pending` → `consume_pending_volume()` → `set_volume()`), sin gesto de meñique.
 
 ### 7.5 Perceptron del modo line (entrenamiento en vivo)
 

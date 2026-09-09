@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import time
+
 import cv2
 import numpy as np
 from numpy.typing import NDArray
 
-from config.palette import BLACK, WHITE
+from config.palette import BLACK, GRAY, GREEN, WHITE
+from config.settings import MUSIC_ACTION_DISPLAY_SECONDS, MUSIC_EFFECTIVE_ZONE_FRACTION
 from config.strings import (
     MUSIC_ACTION_FMT,
     MUSIC_COUNT_FMT,
@@ -17,7 +20,7 @@ from config.strings import (
     MUSIC_TITLE,
     MUSIC_UNKNOWN,
     MUSIC_VOLUME_FMT,
-    MUSIC_VOLUME_SAVED,
+    MUSIC_ZONE_TITLE,
 )
 from controllers.gestures import MusicGestureController
 from controllers.volume import VolumeController
@@ -25,7 +28,6 @@ from core.fingers import (
     features_from_landmarks,
     hand_scale,
     index_thumb_distance,
-    pinky_thumb_distance,
 )
 from core.handedness import LEFT, RIGHT, get_handedness
 from core.results import count_hands, to_pixel_points
@@ -39,6 +41,9 @@ _saga_name: str = MUSIC_UNKNOWN
 _song_name: str = MUSIC_UNKNOWN
 _track_text: str = MUSIC_UNKNOWN
 _player_state: str = MUSIC_UNKNOWN
+_player_volume: float = 0.0
+_action_text: str = ""
+_action_until: float = 0.0
 
 
 def _get_gesture() -> MusicGestureController:
@@ -88,12 +93,19 @@ def reset_state() -> None:
     _get_volume().reset()
 
 
-def set_context(saga_name: str, song_name: str, track_text: str, player_state: str) -> None:
-    global _saga_name, _song_name, _track_text, _player_state
+def set_context(
+    saga_name: str,
+    song_name: str,
+    track_text: str,
+    player_state: str,
+    volume: float = 0.0,
+) -> None:
+    global _saga_name, _song_name, _track_text, _player_state, _player_volume
     _saga_name = saga_name
     _song_name = song_name
     _track_text = track_text
     _player_state = player_state
+    _player_volume = volume
 
 
 def consume_pending_action() -> str:
@@ -104,24 +116,74 @@ def consume_pending_volume() -> float | None:
     return _get_volume().consume_pending_volume()
 
 
+def _set_action(action: str) -> None:
+    global _action_text, _action_until
+    if action:
+        _action_text = action
+        _action_until = time.monotonic() + MUSIC_ACTION_DISPLAY_SECONDS
+
+
+def _current_action() -> str:
+    return _action_text if time.monotonic() < _action_until else ""
+
+
+def _draw_action_line(frame: NDArray[np.uint8]) -> None:
+    shown = _current_action()
+    text = shown if shown else MUSIC_UNKNOWN
+    _put_text_box(
+        frame, MUSIC_ACTION_FMT.format(text), (10, 220), 0.5, 1, WHITE, BLACK, pad_x=5, pad_y=3
+    )
+
+
 def _bbox_tuple(pts: list[tuple[int, int]]) -> tuple[int, int, int, int]:
     xs = [p[0] for p in pts]
     ys = [p[1] for p in pts]
     return min(xs), min(ys), max(xs), max(ys)
 
 
+def _effective_zone(w: int, h: int) -> tuple[int, int, int, int]:
+    margin_x = int(w * MUSIC_EFFECTIVE_ZONE_FRACTION)
+    margin_y = int(h * MUSIC_EFFECTIVE_ZONE_FRACTION)
+    return margin_x, margin_y, w - margin_x, h - margin_y
+
+
+def _hand_center(pts: list[tuple[int, int]]) -> tuple[int, int]:
+    x1, y1, x2, y2 = _bbox_tuple(pts)
+    return (x1 + x2) // 2, (y1 + y2) // 2
+
+
+def _point_in_zone(pt: tuple[int, int], zone: tuple[int, int, int, int]) -> bool:
+    x, y = pt
+    x1, y1, x2, y2 = zone
+    return x1 <= x <= x2 and y1 <= y <= y2
+
+
+def _draw_zone(frame: NDArray[np.uint8], zone: tuple[int, int, int, int], active: bool) -> None:
+    x1, y1, x2, y2 = zone
+    color = GREEN if active else GRAY
+    cv2.rectangle(frame, (x1, y1), (x2, y2), color, 1)
+    (tw, _), _ = cv2.getTextSize(MUSIC_ZONE_TITLE, FONT, 0.45, 1)
+    cx = (x1 + x2) // 2
+    _put_text_box(
+        frame,
+        MUSIC_ZONE_TITLE,
+        (cx - tw // 2, y1 + 14),
+        0.45,
+        1,
+        color,
+        BLACK,
+        pad_x=5,
+        pad_y=3,
+    )
+
+
 def _draw_volume_ui(
     frame: NDArray[np.uint8],
     preview: float,
-    pending: float | None,
     bbox: tuple[int, int, int, int],
 ) -> None:
     x1, y1, x2, y2 = bbox
-    vc = _get_volume()
-    if pending is not None:
-        text = MUSIC_VOLUME_SAVED.format(round(preview * 100))
-    else:
-        text = MUSIC_VOLUME_FMT.format(round(preview * 100))
+    text = MUSIC_VOLUME_FMT.format(round(preview * 100))
     _put_text_box(frame, text, (max(0, x1), max(18, y2 + 8)), 0.5, 1, WHITE, BLACK, pad_x=5, pad_y=3)
     bar_w = 80
     bar_h = 6
@@ -136,14 +198,18 @@ def draw(frame: NDArray[np.uint8], results) -> tuple[NDArray[np.uint8], int]:
     _put_text_box(frame, MUSIC_SONG_FMT.format(_song_name), (10, 100), 0.45, 1, WHITE, BLACK, pad_x=5, pad_y=3)
     _put_text_box(frame, MUSIC_COUNT_FMT.format(_track_text), (10, 124), 0.45, 1, WHITE, BLACK, pad_x=5, pad_y=3)
     _put_text_box(frame, MUSIC_STATE_FMT.format(_player_state), (10, 148), 0.55, 1, WHITE, BLACK, pad_x=5, pad_y=3)
+    _put_text_box(frame, MUSIC_VOLUME_FMT.format(round(_player_volume * 100)), (10, 172), 0.55, 1, WHITE, BLACK, pad_x=5, pad_y=3)
     h, w = frame.shape[:2]
+    zone = _effective_zone(w, h)
+    zone_hit = False
+    _draw_zone(frame, zone, False)
     hand_count = count_hands(results)
     landmarks = results.hand_landmarks or []
     if hand_count == 0:
         draw_viewfinder_crosshair(frame, WHITE)
         reset_state()
-        _put_text_box(frame, MUSIC_FINGERS_FMT.format(MUSIC_UNKNOWN), (10, 172), 0.5, 1, WHITE, BLACK, pad_x=5, pad_y=3)
-        _put_text_box(frame, MUSIC_ACTION_FMT.format(MUSIC_UNKNOWN), (10, 196), 0.5, 1, WHITE, BLACK, pad_x=5, pad_y=3)
+        _put_text_box(frame, MUSIC_FINGERS_FMT.format(MUSIC_UNKNOWN), (10, 196), 0.5, 1, WHITE, BLACK, pad_x=5, pad_y=3)
+        _draw_action_line(frame)
         return frame, hand_count
 
     right_idx = next(
@@ -156,8 +222,8 @@ def draw(frame: NDArray[np.uint8], results) -> tuple[NDArray[np.uint8], int]:
     )
     if right_idx is None and left_idx is None:
         reset_state()
-        _put_text_box(frame, MUSIC_FINGERS_FMT.format(MUSIC_UNKNOWN), (10, 172), 0.5, 1, WHITE, BLACK, pad_x=5, pad_y=3)
-        _put_text_box(frame, MUSIC_ACTION_FMT.format(MUSIC_UNKNOWN), (10, 196), 0.5, 1, WHITE, BLACK, pad_x=5, pad_y=3)
+        _put_text_box(frame, MUSIC_FINGERS_FMT.format(MUSIC_UNKNOWN), (10, 196), 0.5, 1, WHITE, BLACK, pad_x=5, pad_y=3)
+        _draw_action_line(frame)
         return frame, hand_count
 
     if left_idx is not None:
@@ -165,12 +231,13 @@ def draw(frame: NDArray[np.uint8], results) -> tuple[NDArray[np.uint8], int]:
         left_pts = to_pixel_points(left_lm, w, h)
         draw_bbox(frame, left_pts, WHITE, thickness=2)
         draw_skeleton(frame, left_pts)
-        vc = _get_volume()
-        scale = hand_scale(left_lm)
-        distance = index_thumb_distance(left_lm, scale)
-        joined = pinky_thumb_distance(left_lm, scale) < 0.06
-        preview, pending = vc.feed(distance, joined)
-        _draw_volume_ui(frame, preview, pending, _bbox_tuple(left_pts))
+        if _point_in_zone(_hand_center(left_pts), zone):
+            zone_hit = True
+            vc = _get_volume()
+            scale = hand_scale(left_lm)
+            distance = index_thumb_distance(left_lm, scale)
+            preview, _ = vc.feed(distance)
+            _draw_volume_ui(frame, preview, _bbox_tuple(left_pts))
         lx = min(p[0] for p in left_pts)
         ly = min(p[1] for p in left_pts)
         _put_text_box(frame, MUSIC_HAND_L, (max(0, lx), max(18, ly - 30)), 0.6, 2, WHITE, BLACK, pad_x=5, pad_y=3)
@@ -180,16 +247,22 @@ def draw(frame: NDArray[np.uint8], results) -> tuple[NDArray[np.uint8], int]:
         pts = to_pixel_points(hand_landmarks, w, h)
         draw_bbox(frame, pts, WHITE, thickness=2)
         draw_skeleton(frame, pts)
-
-        feat = features_from_landmarks(hand_landmarks, w, h)
-        count, action = _get_gesture().feed(feat)
+        if _point_in_zone(_hand_center(pts), zone):
+            zone_hit = True
+            feat = features_from_landmarks(hand_landmarks, w, h)
+            count, action = _get_gesture().feed(feat)
+            _set_action(action)
+        else:
+            _get_gesture().reset()
+            count, action = -1, ""
         rx, ry = min(p[0] for p in pts) - 10, min(p[1] for p in pts) - 10
         _put_text_box(frame, MUSIC_HAND_R, (max(0, rx), max(18, ry - 10)), 0.6, 2, WHITE, BLACK, pad_x=5, pad_y=3)
     else:
         _get_gesture().reset()
         count, action = -1, ""
 
-    _put_text_box(frame, MUSIC_FINGERS_FMT.format(count if count >= 0 else MUSIC_UNKNOWN), (10, 172), 0.5, 1, WHITE, BLACK, pad_x=5, pad_y=3)
-    _put_text_box(frame, MUSIC_ACTION_FMT.format(action if action else MUSIC_UNKNOWN), (10, 196), 0.5, 1, WHITE, BLACK, pad_x=5, pad_y=3)
+    _put_text_box(frame, MUSIC_FINGERS_FMT.format(count if count >= 0 else MUSIC_UNKNOWN), (10, 196), 0.5, 1, WHITE, BLACK, pad_x=5, pad_y=3)
+    _draw_action_line(frame)
+    _draw_zone(frame, zone, zone_hit)
 
     return frame, hand_count
