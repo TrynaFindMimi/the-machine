@@ -23,6 +23,7 @@ class MusicPlayer:
         self.playing: bool = False
         self.paused: bool = False
         self.volume: float = float(AUDIO.volume)
+        self.audio_ok: bool = True
         self._loaded: pathlib.Path | None = None
 
     @property
@@ -45,38 +46,47 @@ class MusicPlayer:
         return self.sagas[self.saga_idx % len(self.sagas)][0].parent.name
 
     def _init_mixer(self) -> None:
-        os.environ["SDL_AUDIODRIVER"] = AUDIO.driver
-        device = AUDIO.device or None
-        if pygame.mixer.get_init():
-            pygame.mixer.quit()
-        try:
+        def init(dev: str | None) -> None:
             pygame.mixer.init(
                 frequency=AUDIO.frequency,
                 size=AUDIO.size,
                 channels=AUDIO.channels,
                 buffer=AUDIO.buffer,
-                devicename=device,
+                devicename=dev,
             )
-        except pygame.error as e:
-            if not device:
-                raise RuntimeError(f"{e}") from e
-            pygame.mixer.quit()
+
+        for driver in (AUDIO.driver, None):
+            if driver is None:
+                os.environ.pop("SDL_AUDIODRIVER", None)
+            else:
+                os.environ["SDL_AUDIODRIVER"] = driver
+            if pygame.mixer.get_init():
+                pygame.mixer.quit()
             try:
-                pygame.mixer.init(
-                    frequency=AUDIO.frequency,
-                    size=AUDIO.size,
-                    channels=AUDIO.channels,
-                    buffer=AUDIO.buffer,
-                    devicename=None,
-                )
-            except Exception:
-                pygame.mixer.init()
+                init(AUDIO.device or None)
+                self.audio_ok = True
+                return
+            except pygame.error:
+                continue
+        pygame.mixer.quit()
+        os.environ.pop("SDL_AUDIODRIVER", None)
+        try:
+            pygame.mixer.init()
+            self.audio_ok = True
+        except pygame.error as e:
+            self.audio_ok = False
+            print(f"[player] sin audio disponible, reproducción desactivada: {e}")
 
     def play(self) -> None:
         song = self.current_song
         if song is None:
             return
-        self._init_mixer()
+        if not self.audio_ok:
+            return
+        if not pygame.mixer.get_init():
+            self._init_mixer()
+        if not self.audio_ok:
+            return
         if self._loaded == song and self.paused:
             pygame.mixer.music.unpause()
             self.paused = False
@@ -96,19 +106,20 @@ class MusicPlayer:
         self.playing = True
 
     def pause(self) -> None:
-        if self.playing:
+        if self.playing and self.audio_ok:
             pygame.mixer.music.pause()
             self.paused = True
             self.playing = False
 
     def resume(self) -> None:
-        if self.paused:
+        if self.paused and self.audio_ok:
             pygame.mixer.music.unpause()
             self.paused = False
             self.playing = True
 
     def stop(self) -> None:
-        pygame.mixer.music.stop()
+        if self.audio_ok and pygame.mixer.get_init():
+            pygame.mixer.music.stop()
         self.playing = False
         self.paused = False
         self._loaded = None
@@ -152,7 +163,7 @@ class MusicPlayer:
         return MUSIC_STATE_PLAY if self.playing else MUSIC_STATE_PAUSE
 
     def tick(self) -> None:
-        if not self.playing or self.paused:
+        if not self.playing or self.paused or not self.audio_ok:
             return
         if pygame.mixer.get_init() and not pygame.mixer.music.get_busy():
             self.next_song()

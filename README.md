@@ -11,6 +11,8 @@ Deteccion de manos y gestos en tiempo real usando MediaPipe y OpenCV, con una in
 
 ## Instalacion
 
+> Lanzamiento rapido por OS: usa `run-windows.ps1` (PowerShell) o `run-linux.sh` (bash). Crean el entorno `venv313`, instalan dependencias y arrancan `main.py`.
+
 ### 1. Crear entorno virtual
 
 ```bash
@@ -76,10 +78,16 @@ El volumen de la mano izquierda usa un `Perceptron` (2 features: distancia indic
 
 ### Como se elige el dispositivo de audio
 
-El dispositivo de salida se configura en `config/settings.py` (`AudioSettings`): driver `pulseaudio` y `device` opcional (ej. `AirPods Max`). `infrastructure/player.py` setea `SDL_AUDIODRIVER` desde `AUDIO.driver` y re-inicializa `pygame.mixer` en cada `play()`, usando `AUDIO.device` como `devicename` (si es `None`, SDL usa el dispositivo por defecto del sistema). Si la inicialización con el dispositivo falla, reintenta sin `devicename`.
+El dispositivo de salida se configura en `config/settings.py` (`AudioSettings`): driver `wasapi` en Windows / `pulseaudio` en Linux (override con `THE_MACHINE_AUDIO_DRIVER`) y `device` opcional para elegir salida concreta (override con `THE_MACHINE_AUDIO_DEVICE`). `infrastructure/player.py` setea `SDL_AUDIODRIVER` desde `AUDIO.driver` y re-inicializa `pygame.mixer` en cada `play()`, usando `AUDIO.device` como `devicename` (si es `None`, SDL usa el dispositivo por defecto del sistema). Cadena de fallback si el driver configurado falla: 2) driver por defecto de SDL (sin `SDL_AUDIODRIVER`); 3) `pygame.mixer.init()` final sin driver ni device. Si todo falla (p. ej. entorno sin audio), el modo `music` sigue funcionando como UI sin sonido y avisa por consola (`audio_ok=False`).
 
 ```bash
-# listar los dispositivos de audio que ve SDL
+# override del driver/dispositivo por entorno (todas las variables opcionales)
+THE_MACHINE_AUDIO_DRIVER=alsa THE_MACHINE_AUDIO_DEVICE="USB Headset" python main.py
+THE_MACHINE_CAMERA_INDEX=1 python main.py   # si tu webcam no es el indice 0
+```
+
+```bash
+# listar los dispositivos de audio que ve SDL (Linux/pulseaudio; en Windows usa wasapi)
 venv/bin/python -c "import os; os.environ['SDL_AUDIODRIVER']='pulseaudio'; import pygame; pygame.mixer.init(); from pygame import _sdl2; print(_sdl2.audio.get_audio_device_names(True))"
 ```
 
@@ -98,8 +106,8 @@ La extension de cada dedo (excepto pulgar) se mide como el coseno del angulo de 
 Volumen (mano izquierda):
 
 ```
-core/fingers.index_thumb_distance / pinky_thumb_distance → distancias normalizadas
-controllers/volume.VolumeController → Perceptron (2 features) mapea distancia→0..1, commit al cerrar indice+pulgar con meñique↔pulgar, re-arm al separar
+core/fingers.index_thumb_distance → distancia indice↔pulgar normalizada por hand_scale
+controllers/volume.VolumeController → Perceptron (2 features) mapea distancia→0..1 en vivo cada frame
 app/runner → consume_pending_volume → player.set_volume()
 ```
 
@@ -111,9 +119,9 @@ app/runner → consume_pending_volume → player.set_volume()
 
 **position** — GestureRecognizer (2 manos, paleta B/W). Gestos: Closed_Fist, Open_Palm, Pointing_Up, Thumb_Down, Thumb_Up, Victory, ILoveYou. Bounding box/skeleton/landmarks en `WHITE` sin borde negro + fuente grande legible con caja `BLACK` (`_put_text_box`) + `%` confianza por mano.
 
-**music** — Reproductor de EPIC por sagas (folders `NN Title.mp3`). UI con caja negra (`_put_text_box`): SAGA, SONG, TRACK, STATE, FINGERS (4 RNN + Perceptron de pulgar) y ACTION. Tags negros estilo `position`. Mano derecha controla reproduccion/navegacion (con settle + cooldown anti-repeticion); mano izquierda controla volumen (distancia indice↔pulgar, commit cuando meñique se junta con pulgar).
+**music** — Reproductor de EPIC por sagas (folders `NN Title.mp3`). UI con caja negra (`_put_text_box`): SAGA, SONG, TRACK, STATE, FINGERS (4 RNN + Perceptron de pulgar) y ACTION. Tags negros estilo `position`. Mano derecha controla reproduccion/navegacion (con settle + cooldown anti-repeticion); mano izquierda controla volumen solo con indice+pulgar: juntos→bajo, separados→alto, en vivo.
 
-Estilo global: temática griega. Paleta `config/palette.py` con basalto (fondo), bronce (bordes/relieves), dorado (acentos), marfil/piedra (texto) y oliva (live). `presentation/ui/layout.draw_sidebar` dibuja un panel BASALT con `draw_fret_band` (banda de friso) y lista de modos/HANDS/FPS/CONTROLS. El helper `apply_cctv_effect` existe pero queda como no-op (efecto CCTV desactivado); `presentation/ui/greek.py` aporta los motivos (panel, friso, frontón, laurel, texto centrado). Los modos dibujan esqueleto/bbox en `WHITE` sobre `BLACK` (crosshair si no hay mano).
+Estilo global: temática griega. Paleta `config/palette.py` con basalto (fondo), bronce (bordes/relieves), dorado (acentos), marfil/piedra (texto) y oliva (live). `presentation/ui/layout.draw_sidebar` dibuja un panel BASALT con `draw_fret_band` (banda de friso) y lista de modos/HANDS/FPS/CONTROLS, siempre pegado al borde derecho del canvas (`canvas[:, width-sidebar_width:]`), fuera del área de la cámara. El helper `apply_cctv_effect` existe pero queda como no-op (efecto CCTV desactivado); `presentation/ui/greek.py` aporta los motivos (panel, friso, frontón, laurel, texto centrado). Los modos dibujan esqueleto/bbox en `WHITE` sobre `BLACK` (crosshair si no hay mano).
 
 ## Arquitectura en Capas
 
