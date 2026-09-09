@@ -11,6 +11,8 @@ Deteccion de manos y gestos en tiempo real usando MediaPipe y OpenCV, con una in
 
 ## Instalacion
 
+> Lanzamiento rapido por OS: usa `run-windows.ps1` (PowerShell) o `run-linux.sh` (bash). Crean el entorno `venv313`, instalan dependencias y arrancan `main.py`.
+
 ### 1. Crear entorno virtual
 
 ```bash
@@ -76,10 +78,16 @@ El volumen de la mano izquierda usa un `Perceptron` (2 features: distancia indic
 
 ### Como se elige el dispositivo de audio
 
-El dispositivo de salida se configura en `config/settings.py` (`AudioSettings`): driver `pulseaudio` y `device` opcional (ej. `AirPods Max`). `infrastructure/player.py` setea `SDL_AUDIODRIVER` desde `AUDIO.driver` y re-inicializa `pygame.mixer` en cada `play()`, usando `AUDIO.device` como `devicename` (si es `None`, SDL usa el dispositivo por defecto del sistema). Si la inicialización con el dispositivo falla, reintenta sin `devicename`.
+El dispositivo de salida se configura en `config/settings.py` (`AudioSettings`): driver `wasapi` en Windows / `pulseaudio` en Linux (override con `THE_MACHINE_AUDIO_DRIVER`) y `device` opcional para elegir salida concreta (override con `THE_MACHINE_AUDIO_DEVICE`). `infrastructure/player.py` setea `SDL_AUDIODRIVER` desde `AUDIO.driver` y re-inicializa `pygame.mixer` en cada `play()`, usando `AUDIO.device` como `devicename` (si es `None`, SDL usa el dispositivo por defecto del sistema). Cadena de fallback si el driver configurado falla: 2) driver por defecto de SDL (sin `SDL_AUDIODRIVER`); 3) `pygame.mixer.init()` final sin driver ni device. Si todo falla (p. ej. entorno sin audio), el modo `music` sigue funcionando como UI sin sonido y avisa por consola (`audio_ok=False`).
 
 ```bash
-# listar los dispositivos de audio que ve SDL
+# override del driver/dispositivo por entorno (todas las variables opcionales)
+THE_MACHINE_AUDIO_DRIVER=alsa THE_MACHINE_AUDIO_DEVICE="USB Headset" python main.py
+THE_MACHINE_CAMERA_INDEX=1 python main.py   # si tu webcam no es el indice 0
+```
+
+```bash
+# listar los dispositivos de audio que ve SDL (Linux/pulseaudio; en Windows usa wasapi)
 venv/bin/python -c "import os; os.environ['SDL_AUDIODRIVER']='pulseaudio'; import pygame; pygame.mixer.init(); from pygame import _sdl2; print(_sdl2.audio.get_audio_device_names(True))"
 ```
 

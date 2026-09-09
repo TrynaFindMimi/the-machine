@@ -4,16 +4,23 @@ import cv2
 import numpy as np
 from numpy.typing import NDArray
 
+from config.settings import CAMERA_INDEX
+
 
 class Camera:
-    def __init__(self, w: int, h: int, device: int = 0) -> None:
+    def __init__(self, w: int, h: int, device: int = CAMERA_INDEX) -> None:
         if w <= 0 or h <= 0:
             raise ValueError("dimensiones de cámara deben ser > 0")
         self.w: int = int(w)
         self.h: int = int(h)
+        self.device: int = device
         self._vc = cv2.VideoCapture(device)
         if not self._vc.isOpened():
-            raise RuntimeError(f"no se pudo abrir la cámara (device={device})")
+            raise RuntimeError(
+                f"no se pudo abrir la cámara (índice={device}). "
+                "Verifica que esté conectada y, si es otra cámara, "
+                "ajusta THE_MACHINE_CAMERA_INDEX (ej. 1)."
+            )
         self._vc.set(cv2.CAP_PROP_FRAME_WIDTH, w)
         self._vc.set(cv2.CAP_PROP_FRAME_HEIGHT, h)
 

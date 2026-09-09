@@ -1,7 +1,23 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+import os
+from dataclasses import dataclass, field
 from typing import Final
+
+
+def _env_audio_driver() -> str:
+    return os.environ.get("THE_MACHINE_AUDIO_DRIVER", "wasapi" if os.name == "nt" else "pulseaudio")
+
+
+def _env_audio_device() -> str | None:
+    return os.environ.get("THE_MACHINE_AUDIO_DEVICE") or None
+
+
+def _env_camera_index() -> int:
+    try:
+        return int(os.environ.get("THE_MACHINE_CAMERA_INDEX", "0"))
+    except ValueError:
+        return 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,8 +50,8 @@ class VisionSettings:
 
 @dataclass(frozen=True, slots=True)
 class AudioSettings:
-    driver: str = "pulseaudio"
-    device: str | None = None
+    driver: str = field(default_factory=_env_audio_driver)
+    device: str | None = field(default_factory=_env_audio_device)
     frequency: int = 44100
     size: int = -16
     channels: int = 2
@@ -77,3 +93,4 @@ AUDIO: Final = AudioSettings()
 PERCEPTRON: Final = PerceptronSettings()
 VOLUME: Final = VolumeSettings()
 THUMB: Final = ThumbSettings()
+CAMERA_INDEX: Final = _env_camera_index()
