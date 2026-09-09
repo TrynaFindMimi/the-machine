@@ -52,3 +52,34 @@ def test_player_degrades_without_audio() -> None:
     player.tick()
     player.set_volume(0.5)
     assert not player.playing
+
+
+def test_play_does_not_advance_when_already_playing() -> None:
+    import infrastructure.player as player_mod
+
+    player = player_mod.MusicPlayer()
+    player.audio_ok = True
+    player.volume = 1.0
+    player.play()
+    first = player.song_idx
+    player.play()
+    player.play()
+    assert player.song_idx == first
+    assert player.playing
+    player.stop()
+
+
+def test_sidebar_glued_to_right_edge() -> None:
+    import numpy as np
+
+    from config.settings import WINDOW
+    from presentation.ui.layout import draw_sidebar
+    from presentation.ui.theme import SIDEBAR_W
+
+    canvas = np.zeros((WINDOW.height, WINDOW.width, 3), dtype=np.uint8)
+    before = canvas.copy()
+    draw_sidebar(canvas, "hand", 1, 30.0)
+
+    assert np.any(canvas[:, WINDOW.width - SIDEBAR_W :] != 0)
+    sep = WINDOW.width - SIDEBAR_W
+    assert np.array_equal(canvas[:, : sep - 2], before[:, : sep - 2])

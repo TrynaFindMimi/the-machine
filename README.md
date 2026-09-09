@@ -106,8 +106,8 @@ La extension de cada dedo (excepto pulgar) se mide como el coseno del angulo de 
 Volumen (mano izquierda):
 
 ```
-core/fingers.index_thumb_distance / pinky_thumb_distance → distancias normalizadas
-controllers/volume.VolumeController → Perceptron (2 features) mapea distancia→0..1, commit al cerrar indice+pulgar con meñique↔pulgar, re-arm al separar
+core/fingers.index_thumb_distance → distancia indice↔pulgar normalizada por hand_scale
+controllers/volume.VolumeController → Perceptron (2 features) mapea distancia→0..1 en vivo cada frame
 app/runner → consume_pending_volume → player.set_volume()
 ```
 
@@ -119,9 +119,9 @@ app/runner → consume_pending_volume → player.set_volume()
 
 **position** — GestureRecognizer (2 manos, paleta B/W). Gestos: Closed_Fist, Open_Palm, Pointing_Up, Thumb_Down, Thumb_Up, Victory, ILoveYou. Bounding box/skeleton/landmarks en `WHITE` sin borde negro + fuente grande legible con caja `BLACK` (`_put_text_box`) + `%` confianza por mano.
 
-**music** — Reproductor de EPIC por sagas (folders `NN Title.mp3`). UI con caja negra (`_put_text_box`): SAGA, SONG, TRACK, STATE, FINGERS (4 RNN + Perceptron de pulgar) y ACTION. Tags negros estilo `position`. Mano derecha controla reproduccion/navegacion (con settle + cooldown anti-repeticion); mano izquierda controla volumen (distancia indice↔pulgar, commit cuando meñique se junta con pulgar).
+**music** — Reproductor de EPIC por sagas (folders `NN Title.mp3`). UI con caja negra (`_put_text_box`): SAGA, SONG, TRACK, STATE, FINGERS (4 RNN + Perceptron de pulgar) y ACTION. Tags negros estilo `position`. Mano derecha controla reproduccion/navegacion (con settle + cooldown anti-repeticion); mano izquierda controla volumen solo con indice+pulgar: juntos→bajo, separados→alto, en vivo.
 
-Estilo global: temática griega. Paleta `config/palette.py` con basalto (fondo), bronce (bordes/relieves), dorado (acentos), marfil/piedra (texto) y oliva (live). `presentation/ui/layout.draw_sidebar` dibuja un panel BASALT con `draw_fret_band` (banda de friso) y lista de modos/HANDS/FPS/CONTROLS. El helper `apply_cctv_effect` existe pero queda como no-op (efecto CCTV desactivado); `presentation/ui/greek.py` aporta los motivos (panel, friso, frontón, laurel, texto centrado). Los modos dibujan esqueleto/bbox en `WHITE` sobre `BLACK` (crosshair si no hay mano).
+Estilo global: temática griega. Paleta `config/palette.py` con basalto (fondo), bronce (bordes/relieves), dorado (acentos), marfil/piedra (texto) y oliva (live). `presentation/ui/layout.draw_sidebar` dibuja un panel BASALT con `draw_fret_band` (banda de friso) y lista de modos/HANDS/FPS/CONTROLS, siempre pegado al borde derecho del canvas (`canvas[:, width-sidebar_width:]`), fuera del área de la cámara. El helper `apply_cctv_effect` existe pero queda como no-op (efecto CCTV desactivado); `presentation/ui/greek.py` aporta los motivos (panel, friso, frontón, laurel, texto centrado). Los modos dibujan esqueleto/bbox en `WHITE` sobre `BLACK` (crosshair si no hay mano).
 
 ## Arquitectura en Capas
 

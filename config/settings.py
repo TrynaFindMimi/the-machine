@@ -81,10 +81,13 @@ class ThumbSettings:
 @dataclass(frozen=True, slots=True)
 class VolumeSettings:
     near: float = 0.10
-    far: float = 0.45
-    pinky_join: float = 0.06
+    far: float = 0.80
     smoothing: float = 0.35
     model_path: str = "models/volume.npz"
+
+
+MUSIC_ACTION_DISPLAY_SECONDS: Final = 1.0
+MUSIC_EFFECTIVE_ZONE_FRACTION: Final = 1 / 8
 
 
 WINDOW: Final = WindowSettings()

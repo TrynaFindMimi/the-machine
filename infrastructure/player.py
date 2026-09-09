@@ -79,9 +79,14 @@ class MusicPlayer:
 
     def play(self) -> None:
         song = self.current_song
-        if song is None or not self.audio_ok:
+        if song is None:
             return
-        self._init_mixer()
+        if not self.audio_ok:
+            return
+        if not pygame.mixer.get_init():
+            self._init_mixer()
+        if not self.audio_ok:
+            return
         if self._loaded == song and self.paused:
             pygame.mixer.music.unpause()
             self.paused = False
